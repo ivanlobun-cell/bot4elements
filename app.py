@@ -9,10 +9,10 @@ import time
 import math
 from datetime import datetime, timedelta
 
-# Импортируем все данные из отдельного файла
+# ========== ИМПОРТ ДАННЫХ ИЗ data.py ==========
 from data import locations, monster_templates, items_data, raid_boss, daily_quests_pool
 
-# ========== ТОКЕН (из переменной окружения) ==========
+# ========== ТОКЕН ==========
 TOKEN = os.environ.get('TELEGRAM_TOKEN')
 if not TOKEN:
     raise ValueError("Токен не найден! Установите переменную TELEGRAM_TOKEN")
@@ -23,7 +23,7 @@ bot = telebot.TeleBot(TOKEN)
 conn = sqlite3.connect('game.db', check_same_thread=False)
 cursor = conn.cursor()
 
-# Таблица игроков (расширена статистикой)
+# Таблица игроков (с полями для квестов и статистикой)
 cursor.execute('''
 CREATE TABLE IF NOT EXISTS players (
     user_id INTEGER PRIMARY KEY,
@@ -48,6 +48,10 @@ CREATE TABLE IF NOT EXISTS players (
     last_daily_quest TIMESTAMP,
     daily_quest TEXT,
     daily_quest_progress INTEGER DEFAULT 0,
+    daily_quest_target TEXT,
+    daily_quest_count INTEGER DEFAULT 0,
+    daily_quest_reward_exp INTEGER DEFAULT 0,
+    daily_quest_reward_gold INTEGER DEFAULT 0,
     last_raid TIMESTAMP,
     pvp_wins INTEGER DEFAULT 0,
     pvp_losses INTEGER DEFAULT 0,
@@ -59,12 +63,14 @@ CREATE TABLE IF NOT EXISTS players (
 ''')
 conn.commit()
 
-# Добавление новых столбцов, если их нет
+# Добавление недостающих столбцов (если их нет)
 cursor.execute("PRAGMA table_info(players)")
-cols = [c[1] for c in cursor.fetchall()]
-for col in ['last_daily_quest', 'daily_quest', 'daily_quest_progress', 'last_raid', 'pvp_wins', 'pvp_losses',
-            'total_kills', 'total_duels', 'total_quests', 'total_gold_earned']:
-    if col not in cols:
+existing_cols = [c[1] for c in cursor.fetchall()]
+for col in ['last_daily_quest', 'daily_quest', 'daily_quest_progress', 'daily_quest_target',
+            'daily_quest_count', 'daily_quest_reward_exp', 'daily_quest_reward_gold',
+            'last_raid', 'pvp_wins', 'pvp_losses', 'total_kills', 'total_duels',
+            'total_quests', 'total_gold_earned']:
+    if col not in existing_cols:
         cursor.execute(f"ALTER TABLE players ADD COLUMN {col} DEFAULT NULL")
 conn.commit()
 
@@ -73,7 +79,7 @@ cursor.execute('''
 CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
-    type TEXT NOT NULL,  -- 'weapon','armor','helmet','accessory','potion_hp','potion_energy'
+    type TEXT NOT NULL,
     rarity TEXT NOT NULL,
     description TEXT,
     attack_bonus INTEGER DEFAULT 0,
@@ -87,7 +93,6 @@ CREATE TABLE IF NOT EXISTS items (
 ''')
 conn.commit()
 
-# Проверка столбцов в items (миграция)
 cursor.execute("PRAGMA table_info(items)")
 item_cols = [c[1] for c in cursor.fetchall()]
 for col in ['attack_bonus', 'defense_bonus', 'hp_bonus', 'energy_bonus', 'effect_percent']:
@@ -137,28 +142,24 @@ conn.commit()
 cursor.execute("SELECT COUNT(*) FROM abilities")
 if cursor.fetchone()[0] == 0:
     abilities_data = [
-        # Вода
         ('❄️ Ледяная стрела', 'Вода', 'Выпускает ледяной снаряд, пронзающий врага.', 15, 0, 10, 5, 1.15),
         ('💧 Исцеление', 'Вода', 'Восстанавливает часть здоровья.', 0, 20, 15, 10, 1.2),
         ('🛡️ Ледяной щит', 'Вода', 'Создаёт ледяную защиту, уменьшающую урон.', 0, 0, 10, 15, 1.0),
         ('🌊 Цунами', 'Вода', 'Огромная волна сметает врага.', 30, 0, 20, 20, 1.1),
         ('👻 Призыв духа', 'Вода', 'Дух воды атакует и лечит.', 10, 15, 25, 25, 1.15),
         ('🌀 Ледяная буря', 'Вода', 'Ледяной вихрь уничтожает всё на своём пути.', 45, 0, 30, 30, 1.1),
-        # Земля
         ('🗿 Каменный кулак', 'Земля', 'Мощный удар каменной рукой.', 18, 0, 10, 5, 1.15),
         ('🪨 Земляная броня', 'Земля', 'Увеличивает защиту на время боя.', 0, 0, 15, 10, 1.0),
         ('🌍 Дрожь земли', 'Земля', 'Вызывает землетрясение, наносящее урон.', 25, 0, 15, 15, 1.1),
         ('🧱 Каменная стена', 'Земля', 'Возводит каменную стену, сильно снижающую урон.', 0, 0, 20, 20, 1.0),
         ('💢 Гнев земли', 'Земля', 'Разрушительная атака камнями.', 35, 0, 20, 20, 1.15),
         ('🌋 Землетрясение', 'Земля', 'Мощнейшее землетрясение с огромным уроном.', 55, 0, 30, 30, 1.1),
-        # Огонь
         ('🔥 Огненный шар', 'Огонь', 'Запускает огненный шар, наносящий урон.', 20, 0, 10, 5, 1.15),
         ('🛡️ Огненный щит', 'Огонь', 'Окутывает тело пламенем, повышающим атаку.', 0, 0, 15, 10, 1.0),
         ('🔥 Пламя', 'Огонь', 'Поджигает врага, нанося урон в несколько ходов.', 28, 0, 15, 15, 1.1),
         ('☄️ Огненный дождь', 'Огонь', 'Град огненных шаров обрушивается на врага.', 35, 0, 20, 20, 1.15),
         ('💥 Вспышка', 'Огонь', 'Ослепительная вспышка, наносящая критический урон.', 40, 0, 25, 25, 1.1),
         ('🌪️ Пепельный вихрь', 'Огонь', 'Огненный смерч испепеляет всё вокруг.', 60, 0, 30, 30, 1.1),
-        # Воздух
         ('💨 Воздушный удар', 'Воздух', 'Стремительный удар воздушным потоком.', 15, 0, 8, 5, 1.15),
         ('🍃 Ветряной щит', 'Воздух', 'Вихрь воздуха уклоняет атаки.', 0, 0, 12, 10, 1.0),
         ('🌪️ Ураган', 'Воздух', 'Мощный ураган наносит урон.', 25, 0, 15, 15, 1.1),
@@ -183,53 +184,22 @@ if cursor.fetchone()[0] == 0 and items_data:
         ''', item)
     conn.commit()
 
-# ========== ФУНКЦИЯ ПОЛУЧЕНИЯ МОНСТРА (без масштабирования) ==========
-def get_monster_for_location(location_id):
-    possible = [m for m in monster_templates.values() if location_id in m.get('locations', [])]
-    if not possible:
-        return {
-            'name': '👾 Дикое создание',
-            'desc': 'Неизвестное существо, появившееся из ниоткуда.',
-            'hp': 30, 'attack': 10, 'defense': 3, 'exp': 15,
-            'ability': '💢 Дикий рывок',
-            'ability_damage': 15,
-            'rank': 'Обычный',
-            'loot': [{'item_name': '🧪 Малое зелье лечения', 'chance': 0.1}],
-            'gold_min': 2, 'gold_max': 8
-        }
-    monster = random.choice(possible).copy()
-    roll = random.random()
-    if roll < 0.6:
-        rank, mult = 'Обычный', 1.0
-    elif roll < 0.9:
-        rank, mult = 'Элитный', 1.8
-    else:
-        rank, mult = 'Босс', 3.0
-    monster['hp'] = int(monster['hp'] * mult)
-    monster['attack'] = int(monster['attack'] * mult)
-    monster['defense'] = int(monster['defense'] * mult)
-    monster['exp'] = int(monster['exp'] * mult)
-    monster['gold_min'] = int(monster['gold_min'] * mult)
-    monster['gold_max'] = int(monster['gold_max'] * mult)
-    monster['rank'] = rank
-    return monster
-
-# ========== СОСТОЯНИЯ ==========
+# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 registration_states = {}
 battle_states = {}
 pvp_duels = {}
 restore_cooldowns = {}
 pending_monsters = {}
 
-# ========== ФУНКЦИИ ИГРОКА ==========
 def get_player(user_id):
     cursor.execute("SELECT * FROM players WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
     if row:
         columns = ['user_id','name','nation','level','exp','hp','max_hp','attack','defense','location','energy','max_energy',
                    'skill_points','stat_points','gold','weapon_slot','armor_slot','helmet_slot','accessory_slot',
-                   'last_daily_quest','daily_quest','daily_quest_progress','last_raid','pvp_wins','pvp_losses',
-                   'total_kills','total_duels','total_quests','total_gold_earned']
+                   'last_daily_quest','daily_quest','daily_quest_progress','daily_quest_target','daily_quest_count',
+                   'daily_quest_reward_exp','daily_quest_reward_gold',
+                   'last_raid','pvp_wins','pvp_losses','total_kills','total_duels','total_quests','total_gold_earned']
         return dict(zip(columns, row))
     return None
 
@@ -288,7 +258,6 @@ def heal_player(player, percent_hp=0.2, percent_energy=0.3):
     save_player(player['user_id'], hp=new_hp, energy=new_energy)
     return new_hp - player['hp'], new_energy - player['energy'], new_hp, new_energy
 
-# ========== ЭКИПИРОВКА И СТАТЫ ==========
 def get_item_info(item_id):
     cursor.execute('''
     SELECT id, name, type, rarity, description, attack_bonus, defense_bonus, hp_bonus, energy_bonus, effect_percent, price_buy, price_sell
@@ -379,7 +348,6 @@ def get_inventory(user_id):
     ''', (user_id,))
     return cursor.fetchall()
 
-# ========== СПОСОБНОСТИ ==========
 def get_player_abilities(user_id):
     cursor.execute('''
     SELECT a.id, a.name, a.nation, a.description, a.base_damage, a.base_heal, a.energy_cost, a.unlock_level, a.upgrade_multiplier, p.level
@@ -414,9 +382,45 @@ def upgrade_ability(user_id, ability_id):
     conn.commit()
     return new_level
 
-# ========== ЕЖЕДНЕВНЫЕ КВЕСТЫ ==========
+def get_monster_for_location(location_id):
+    possible = [m for m in monster_templates.values() if location_id in m.get('locations', [])]
+    if not possible:
+        return {
+            'name': '👾 Дикое создание',
+            'desc': 'Неизвестное существо, появившееся из ниоткуда.',
+            'hp': 30, 'attack': 10, 'defense': 3, 'exp': 15,
+            'ability': '💢 Дикий рывок',
+            'ability_damage': 15,
+            'rank': 'Обычный',
+            'loot': [{'item_name': '🧪 Малое зелье лечения', 'chance': 0.1}],
+            'gold_min': 2, 'gold_max': 8
+        }
+    monster = random.choice(possible).copy()
+    roll = random.random()
+    if roll < 0.6:
+        rank, mult = 'Обычный', 1.0
+    elif roll < 0.9:
+        rank, mult = 'Элитный', 1.8
+    else:
+        rank, mult = 'Босс', 3.0
+    monster['hp'] = int(monster['hp'] * mult)
+    monster['attack'] = int(monster['attack'] * mult)
+    monster['defense'] = int(monster['defense'] * mult)
+    monster['exp'] = int(monster['exp'] * mult)
+    monster['gold_min'] = int(monster['gold_min'] * mult)
+    monster['gold_max'] = int(monster['gold_max'] * mult)
+    monster['rank'] = rank
+    return monster
+
 def generate_daily_quest():
-    return random.choice(daily_quests_pool)
+    quest = random.choice(daily_quests_pool)
+    return {
+        'desc': quest['desc'],
+        'target': quest['target'],
+        'count': quest['count'],
+        'reward_exp': quest['reward_exp'],
+        'reward_gold': quest['reward_gold']
+    }
 
 def check_daily_quest(user_id):
     player = get_player(user_id)
@@ -427,41 +431,72 @@ def check_daily_quest(user_id):
         last = datetime.strptime(player['last_daily_quest'], '%Y-%m-%d %H:%M:%S')
         if (now - last).days >= 1:
             quest = generate_daily_quest()
-            save_player(user_id, daily_quest=quest['desc'], daily_quest_progress=0, last_daily_quest=now.strftime('%Y-%m-%d %H:%M:%S'))
+            save_player(user_id,
+                        daily_quest=quest['desc'],
+                        daily_quest_progress=0,
+                        daily_quest_target=quest['target'],
+                        daily_quest_count=quest['count'],
+                        daily_quest_reward_exp=quest['reward_exp'],
+                        daily_quest_reward_gold=quest['reward_gold'],
+                        last_daily_quest=now.strftime('%Y-%m-%d %H:%M:%S'))
             return quest
         else:
             if player['daily_quest']:
-                return {'desc': player['daily_quest'], 'progress': player['daily_quest_progress']}
+                return {
+                    'desc': player['daily_quest'],
+                    'target': player['daily_quest_target'],
+                    'count': player['daily_quest_count'],
+                    'progress': player['daily_quest_progress'],
+                    'reward_exp': player['daily_quest_reward_exp'],
+                    'reward_gold': player['daily_quest_reward_gold']
+                }
             else:
                 quest = generate_daily_quest()
-                save_player(user_id, daily_quest=quest['desc'], daily_quest_progress=0, last_daily_quest=now.strftime('%Y-%m-%d %H:%M:%S'))
+                save_player(user_id,
+                            daily_quest=quest['desc'],
+                            daily_quest_progress=0,
+                            daily_quest_target=quest['target'],
+                            daily_quest_count=quest['count'],
+                            daily_quest_reward_exp=quest['reward_exp'],
+                            daily_quest_reward_gold=quest['reward_gold'],
+                            last_daily_quest=now.strftime('%Y-%m-%d %H:%M:%S'))
                 return quest
     else:
         quest = generate_daily_quest()
-        save_player(user_id, daily_quest=quest['desc'], daily_quest_progress=0, last_daily_quest=now.strftime('%Y-%m-%d %H:%M:%S'))
+        save_player(user_id,
+                    daily_quest=quest['desc'],
+                    daily_quest_progress=0,
+                    daily_quest_target=quest['target'],
+                    daily_quest_count=quest['count'],
+                    daily_quest_reward_exp=quest['reward_exp'],
+                    daily_quest_reward_gold=quest['reward_gold'],
+                    last_daily_quest=now.strftime('%Y-%m-%d %H:%M:%S'))
         return quest
 
-def update_daily_quest(user_id, location):
+def update_daily_quest(user_id, location_id):
     player = get_player(user_id)
-    if not player or not player['daily_quest']:
+    if not player or not player['daily_quest'] or not player['daily_quest_target']:
         return False, None
-    import re
-    numbers = re.findall(r'\d+', player['daily_quest'])
-    if numbers:
-        target = int(numbers[0])
-        if location in player['daily_quest']:
-            progress = player['daily_quest_progress'] + 1
-            save_player(user_id, daily_quest_progress=progress)
-            if progress >= target:
-                reward_exp = 30
-                reward_gold = 20
-                gain_exp(user_id, reward_exp)
-                player = get_player(user_id)
-                save_player(user_id, gold=player['gold'] + reward_gold)
-                save_player(user_id, daily_quest=None, daily_quest_progress=0)
-                save_player(user_id, total_quests=player['total_quests'] + 1)
-                return True, f"✅ Квест выполнен! Получено {reward_exp} опыта и {reward_gold} золота."
-    return False, None
+    if player['daily_quest_target'] != location_id:
+        return False, None
+    new_progress = player['daily_quest_progress'] + 1
+    save_player(user_id, daily_quest_progress=new_progress)
+    if new_progress >= player['daily_quest_count']:
+        reward_exp = player['daily_quest_reward_exp']
+        reward_gold = player['daily_quest_reward_gold']
+        gain_exp(user_id, reward_exp)
+        player2 = get_player(user_id)
+        save_player(user_id, gold=player2['gold'] + reward_gold, total_quests=player2['total_quests'] + 1)
+        save_player(user_id,
+                    daily_quest=None,
+                    daily_quest_progress=0,
+                    daily_quest_target=None,
+                    daily_quest_count=0,
+                    daily_quest_reward_exp=0,
+                    daily_quest_reward_gold=0)
+        return True, f"✅ **Квест выполнен!**\nПолучено {reward_exp} опыта и {reward_gold} золота."
+    else:
+        return False, None
 
 def can_raid(user_id):
     player = get_player(user_id)
@@ -492,7 +527,7 @@ def battle_status_text(player, monster, total_stats, is_pvp=False):
             f"⚡ Энергия: {player['energy']}/{total_stats['max_energy']}\n"
             f"❤️ {hp_label}: {monster['hp']}")
 
-# ========== МЕНЮ СПОСОБНОСТЕЙ ==========
+# ========== МЕНЮ (inline-клавиатуры) ==========
 def abilities_menu(user_id):
     abilities = get_player_abilities(user_id)
     if not abilities:
@@ -517,7 +552,6 @@ def abilities_menu(user_id):
     keyboard.add(telebot.types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu"))
     return text, keyboard
 
-# ========== МАГАЗИН ==========
 def shop_menu(user_id, category=None):
     player = get_player(user_id)
     if not player:
@@ -798,7 +832,9 @@ def daily_cmd(message):
     user_id = message.chat.id
     quest = check_daily_quest(user_id)
     if isinstance(quest, dict) and 'desc' in quest:
-        bot.reply_to(message, f"📋 **Ежедневный квест:**\n{quest['desc']}\n📊 Прогресс: {quest.get('progress', 0)}", parse_mode='Markdown')
+        progress = quest.get('progress', 0)
+        count = quest.get('count', 0)
+        bot.reply_to(message, f"📋 **Ежедневный квест:**\n{quest['desc']}\n📊 Прогресс: {progress}/{count}", parse_mode='Markdown')
     else:
         bot.reply_to(message, "Не удалось получить квест.")
 
@@ -1012,7 +1048,6 @@ def go_callback(call):
     if target not in locations.get(player['location'], {}).get('exits', []):
         bot.answer_callback_query(call.id, "Нет пути.")
         return
-    # Информация об уровне (без блокировки)
     if player['level'] < target_loc.get('min_level', 1):
         bot.answer_callback_query(call.id, f"⚠️ Требуется уровень {target_loc['min_level']} для безопасного входа. Будьте осторожны!")
     save_player(user_id, location=target)
@@ -1407,7 +1442,6 @@ def battle_action(message):
     if player_msg:
         bot.reply_to(message, player_msg, parse_mode='Markdown')
 
-    # Проверка смерти монстра
     if monster['hp'] <= 0:
         exp_gain = monster.get('exp', 20)
         gold_gain = random.randint(monster.get('gold_min', 2), monster.get('gold_max', 8))
@@ -1434,10 +1468,11 @@ def battle_action(message):
         if state.get('is_raid', False):
             save_player(user_id, last_raid=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             bot.send_message(user_id, "🐉 Рейдовый босс повержен! Возвращайтесь завтра.")
+        # Обновляем квест
         player_loc = player['location']
-        update_result = update_daily_quest(user_id, player_loc)
-        if update_result and update_result[0]:
-            bot.send_message(user_id, update_result[1])
+        quest_complete, quest_msg = update_daily_quest(user_id, player_loc)
+        if quest_complete and quest_msg:
+            bot.send_message(user_id, quest_msg, parse_mode='Markdown')
         if user_id in battle_states:
             del battle_states[user_id]
         msg = f"🎉 **Победа!**\nПолучено опыта: {exp_gain}\n💰 Золота: {gold_gain}" + loot_msg
@@ -1446,7 +1481,6 @@ def battle_action(message):
         bot.reply_to(message, msg, parse_mode='Markdown', reply_markup=main_menu_keyboard())
         return
 
-    # Ход монстра (для PvP упрощённо)
     is_pvp = state.get('is_pvp', False)
     if not is_pvp:
         uses_ability = random.random() < 0.4
@@ -1630,7 +1664,7 @@ def nation_callback(call):
     bot.send_message(user_id, "🌟 Используйте кнопки для навигации:", reply_markup=main_menu_keyboard())
     bot.answer_callback_query(call.id)
 
-# ========== Flask-сервер для Render ==========
+# ========== FLASK ==========
 app = Flask(__name__)
 
 @app.route('/')
@@ -1641,7 +1675,6 @@ def home():
 def health():
     return "OK"
 
-# ========== Запуск бота в отдельном потоке ==========
 def run_bot():
     print("✅ Бот запущен и слушает сообщения...")
     bot.infinity_polling()
