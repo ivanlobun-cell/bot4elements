@@ -208,7 +208,7 @@ if cursor.fetchone()[0] == 0:
         ''', item)
     conn.commit()
 
-# ========== КАРТА МИРА (новая, с уровнями и красивыми описаниями) ==========
+# ========== КАРТА МИРА ==========
 locations = {
     'start': {
         'name': '🌍 Перекрёсток',
@@ -260,14 +260,13 @@ locations = {
     }
 }
 
-# ========== МОНСТРЫ (с описаниями и масштабированием) ==========
+# ========== МОНСТРЫ (без масштабирования, только ранги) ==========
 monster_templates = {
     'ice_spirit': {
         'name': '❄️ Ледяной дух',
-        'desc': 'Прозрачная фигура, сотканная из морозного воздуха. Она движется бесшумно, оставляя за собой следы инея. Говорят, это душа древнего воина, замерзшего в вечных снегах.',
+        'desc': 'Прозрачная фигура, сотканная из морозного воздуха. Она движется бесшумно, оставляя за собой следы инея.',
         'hp': 45, 'attack': 12, 'defense': 5, 'exp': 25,
-        'ability': '❄️ Ледяное дыхание',
-        'ability_damage': 18,
+        'ability': '❄️ Ледяное дыхание', 'ability_damage': 18,
         'locations': ['south_pole'],
         'loot': [{'item_name': '🧪 Малое зелье лечения', 'chance': 0.3},
                  {'item_name': '🧪 Зелье энергии', 'chance': 0.2},
@@ -277,10 +276,9 @@ monster_templates = {
     },
     'snow_wolf': {
         'name': '🐺 Снежный волк',
-        'desc': 'Белый как снег, быстрый как ветер. Снежный волк — это хищник, который никогда не упускает свою добычу. Его клыки могут пробить даже самую толстую шкуру.',
+        'desc': 'Белый как снег, быстрый как ветер. Его клыки могут пробить даже самую толстую шкуру.',
         'hp': 35, 'attack': 15, 'defense': 3, 'exp': 20,
-        'ability': '🐾 Смертельный укус',
-        'ability_damage': 22,
+        'ability': '🐾 Смертельный укус', 'ability_damage': 22,
         'locations': ['south_pole'],
         'loot': [{'item_name': '🧪 Малое зелье лечения', 'chance': 0.25},
                  {'item_name': '🛡️ Кожаный доспех', 'chance': 0.02}],
@@ -288,10 +286,9 @@ monster_templates = {
     },
     'earth_guardian': {
         'name': '🧱 Страж земли',
-        'desc': 'Гигантская каменная статуя, оживленная древней магией. Она защищает землю Омашу от вторжений. Её удары сокрушают даже самые крепкие доспехи.',
+        'desc': 'Гигантская каменная статуя, оживлённая древней магией. Её удары сокрушают даже самые крепкие доспехи.',
         'hp': 55, 'attack': 10, 'defense': 10, 'exp': 30,
-        'ability': '🤜 Каменный кулак',
-        'ability_damage': 20,
+        'ability': '🤜 Каменный кулак', 'ability_damage': 20,
         'locations': ['omashu'],
         'loot': [{'item_name': '🧪 Большое зелье лечения', 'chance': 0.2},
                  {'item_name': '⚔️ Стальной меч', 'chance': 0.02},
@@ -300,10 +297,9 @@ monster_templates = {
     },
     'sand_scorpion': {
         'name': '🦂 Песчаный скорпион',
-        'desc': 'Огромный скорпион, который прячется в песках Омашу. Его жало содержит яд, способный парализовать даже самого сильного воина. Он быстр и смертоносен.',
+        'desc': 'Огромный скорпион, прячущийся в песках. Его жало содержит парализующий яд.',
         'hp': 30, 'attack': 18, 'defense': 2, 'exp': 22,
-        'ability': '☠️ Ядовитое жало',
-        'ability_damage': 25,
+        'ability': '☠️ Ядовитое жало', 'ability_damage': 25,
         'locations': ['omashu'],
         'loot': [{'item_name': '🧪 Зелье энергии', 'chance': 0.3},
                  {'item_name': '📿 Амулет защиты', 'chance': 0.01}],
@@ -311,55 +307,51 @@ monster_templates = {
     },
     'fire_salamander': {
         'name': '🦎 Огненная саламандра',
-        'desc': 'Ящерица, покрытая чешуёй, которая светится в темноте. Она извергает пламя и любит селиться в жерлах вулканов. Её появление предвещает скорое извержение.',
-        'hp': 50, 'attack': 20, 'defense': 6, 'exp': 28,
-        'ability': '🔥 Огненный шар',
-        'ability_damage': 30,
+        'desc': 'Ящерица, покрытая чешуёй, светящейся в темноте. Она извергает пламя и любит селиться в жерлах вулканов.',
+        'hp': 45, 'attack': 15, 'defense': 6, 'exp': 25,
+        'ability': '🔥 Огненный шар', 'ability_damage': 25,
         'locations': ['fire_capital'],
         'loot': [{'item_name': '🧪 Малое зелье лечения', 'chance': 0.3},
                  {'item_name': '🔥 Огненный клинок', 'chance': 0.01},
                  {'item_name': '🔗 Кольчуга', 'chance': 0.02}],
-        'gold_min': 8, 'gold_max': 20
+        'gold_min': 6, 'gold_max': 15
     },
     'ash_wraith': {
         'name': '👻 Пепельный призрак',
-        'desc': 'Призрачное существо, состоящее из пепла и дыма. Оно появляется из ниоткуда, когда воздух наполнен гарью. Его прикосновение обжигает душу.',
-        'hp': 40, 'attack': 22, 'defense': 4, 'exp': 35,
-        'ability': '🌪️ Пепельный вихрь',
-        'ability_damage': 28,
+        'desc': 'Призрачное существо из пепла и дыма. Его прикосновение обжигает душу.',
+        'hp': 35, 'attack': 18, 'defense': 4, 'exp': 30,
+        'ability': '🌪️ Пепельный вихрь', 'ability_damage': 25,
         'locations': ['fire_capital'],
         'loot': [{'item_name': '🧪 Большое зелье лечения', 'chance': 0.25},
                  {'item_name': '💎 Ожерелье жизни', 'chance': 0.01}],
-        'gold_min': 12, 'gold_max': 30
+        'gold_min': 10, 'gold_max': 22
     },
     'wind_serpent': {
         'name': '🐉 Ветряной змей',
-        'desc': 'Дракон, сотканный из ветра. Он парит в небесах, неуловимый для глаз. Его порывы могут сбить с ног целую армию.',
-        'hp': 35, 'attack': 16, 'defense': 7, 'exp': 25,
-        'ability': '🌪️ Ураганный порыв',
-        'ability_damage': 24,
+        'desc': 'Дракон, сотканный из ветра. Он парит в небесах, неуловимый для глаз.',
+        'hp': 30, 'attack': 12, 'defense': 5, 'exp': 20,
+        'ability': '🌪️ Ураганный порыв', 'ability_damage': 20,
         'locations': ['western_temple'],
         'loot': [{'item_name': '🧪 Зелье энергии', 'chance': 0.3},
                  {'item_name': '🔮 Кольцо мага', 'chance': 0.01}],
-        'gold_min': 6, 'gold_max': 14
+        'gold_min': 4, 'gold_max': 10
     },
     'cloud_guardian': {
         'name': '☁️ Облачный страж',
-        'desc': 'Существо из облаков, охраняющее небесные сады. Оно может управлять погодой, насылая грозы и молнии. Лишь самые отважные могут пройти мимо него.',
-        'hp': 60, 'attack': 12, 'defense': 12, 'exp': 40,
-        'ability': '⚡ Грозовой разряд',
-        'ability_damage': 35,
+        'desc': 'Существо из облаков, охраняющее небесные сады. Оно может управлять погодой, насылая грозы и молнии.',
+        'hp': 50, 'attack': 10, 'defense': 10, 'exp': 30,
+        'ability': '⚡ Грозовой разряд', 'ability_damage': 28,
         'locations': ['western_temple'],
-        'loot': [{'item_name': '❄️ Ледяной клинок', 'chance': 0.005},
+        'loot': [{'item_name': '🧪 Большое зелье лечения', 'chance': 0.2},
+                 {'item_name': '❄️ Ледяной клинок', 'chance': 0.005},
                  {'item_name': '⭐ Артефакт мощи', 'chance': 0.005}],
-        'gold_min': 15, 'gold_max': 35
+        'gold_min': 10, 'gold_max': 25
     },
     'spirit_guardian': {
         'name': '🌳 Хранитель леса',
-        'desc': 'Древний дух, принявший облик огромного дерева. Он оживает, когда кто-то угрожает его лесу. Его корни способны пронзить скалы, а листья светятся магией.',
+        'desc': 'Древний дух, принявший облик огромного дерева. Его корни способны пронзить скалы, а листья светятся магией.',
         'hp': 70, 'attack': 18, 'defense': 8, 'exp': 45,
-        'ability': '🌿 Духовный удар',
-        'ability_damage': 32,
+        'ability': '🌿 Духовный удар', 'ability_damage': 32,
         'locations': ['spirit_forest'],
         'loot': [{'item_name': '🧪 Большое зелье лечения', 'chance': 0.3},
                  {'item_name': '🧱 Латный доспех', 'chance': 0.01},
@@ -368,10 +360,9 @@ monster_templates = {
     },
     'lava_beast': {
         'name': '🔥 Лавовый зверь',
-        'desc': 'Чудовище из расплавленной породы, которое обитает в глубинах горы. Каждый его шаг оставляет лужи лавы. Он не знает страха и сжигает всё на своём пути.',
+        'desc': 'Чудовище из расплавленной породы, обитающее в глубинах горы. Каждый его шаг оставляет лужи лавы.',
         'hp': 80, 'attack': 25, 'defense': 5, 'exp': 50,
-        'ability': '🌋 Лавовый плевок',
-        'ability_damage': 40,
+        'ability': '🌋 Лавовый плевок', 'ability_damage': 40,
         'locations': ['death_mountain'],
         'loot': [{'item_name': '⚡ Молния-меч', 'chance': 0.005},
                  {'item_name': '🐉 Доспех дракона', 'chance': 0.005},
@@ -380,7 +371,7 @@ monster_templates = {
     }
 }
 
-# Рейдовый босс (обновлён)
+# Рейдовый босс (фиксированный, без масштабирования)
 raid_boss = {
     'name': '🐉 Древний дракон',
     'desc': 'Легендарное существо, которому тысячи лет. Его чешуя твёрже стали, а дыхание может испепелить целый город. Говорят, он охраняет сокровища, которые могут изменить мир.',
@@ -395,8 +386,8 @@ raid_boss = {
              {'item_name': '⭐ Артефакт мощи', 'chance': 0.1}]
 }
 
-def get_monster_for_location(location_id, player_level):
-    """Возвращает монстра с учётом уровня игрока и масштабированием."""
+def get_monster_for_location(location_id):
+    """Возвращает монстра с учётом ранга (обычный/элитный/босс), без масштабирования по уровню."""
     possible = [m for m in monster_templates.values() if location_id in m.get('locations', [])]
     if not possible:
         # Универсальный монстр, если нет подходящих
@@ -419,15 +410,13 @@ def get_monster_for_location(location_id, player_level):
     else:
         rank, mult = 'Босс', 3.0
 
-    # Масштабирование по уровню игрока (базовый множитель 1.0 на уровне 1, +15% за уровень)
-    scale = 1.0 + (player_level - 1) * 0.15
-
-    monster['hp'] = int(monster['hp'] * mult * scale)
-    monster['attack'] = int(monster['attack'] * mult * scale)
-    monster['defense'] = int(monster['defense'] * mult * scale)
-    monster['exp'] = int(monster['exp'] * mult * scale)
-    monster['gold_min'] = int(monster['gold_min'] * mult * scale)
-    monster['gold_max'] = int(monster['gold_max'] * mult * scale)
+    # Применяем множитель ранга к базовым статам (без масштабирования по уровню)
+    monster['hp'] = int(monster['hp'] * mult)
+    monster['attack'] = int(monster['attack'] * mult)
+    monster['defense'] = int(monster['defense'] * mult)
+    monster['exp'] = int(monster['exp'] * mult)
+    monster['gold_min'] = int(monster['gold_min'] * mult)
+    monster['gold_max'] = int(monster['gold_max'] * mult)
     monster['rank'] = rank
     return monster
 
@@ -683,7 +672,6 @@ def update_daily_quest(user_id, location):
                 player = get_player(user_id)
                 save_player(user_id, gold=player['gold'] + reward_gold)
                 save_player(user_id, daily_quest=None, daily_quest_progress=0)
-                # Увеличиваем счётчик выполненных квестов
                 save_player(user_id, total_quests=player['total_quests'] + 1)
                 return True, f"✅ Квест выполнен! Получено {reward_exp} опыта и {reward_gold} золота."
     return False, None
@@ -1091,8 +1079,7 @@ def hunt_text(message):
     if user_id in battle_states:
         bot.reply_to(message, "Вы уже в бою!")
         return
-    # Генерируем монстра с учётом уровня игрока
-    monster = get_monster_for_location(player['location'], player['level'])
+    monster = get_monster_for_location(player['location'])
     pending_monsters[user_id] = monster
     keyboard = telebot.types.InlineKeyboardMarkup(row_width=2)
     keyboard.add(telebot.types.InlineKeyboardButton("⚔️ Сражаться!", callback_data="fight_confirm"))
@@ -1238,10 +1225,9 @@ def go_callback(call):
     if target not in locations.get(player['location'], {}).get('exits', []):
         bot.answer_callback_query(call.id, "Нет пути.")
         return
-    # Проверка уровня (только информационная, не блокируем)
+    # Информация об уровне (без блокировки)
     if player['level'] < target_loc.get('min_level', 1):
         bot.answer_callback_query(call.id, f"⚠️ Требуется уровень {target_loc['min_level']} для безопасного входа. Будьте осторожны!")
-        # Всё равно пускаем
     save_player(user_id, location=target)
     loc = locations[target]
     bot.edit_message_text(f"🚶 Вы переместились в **{loc['name']}**.\n\n{loc['desc']}",
@@ -1387,7 +1373,6 @@ def sell_callback(call):
     price = cursor.fetchone()[0]
     total_gold = price * qty
     save_player(user_id, gold=player['gold'] + total_gold)
-    # Обновляем total_gold_earned (но продажа не считается заработком, поэтому не трогаем)
     cursor.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ?", (user_id, item_id))
     conn.commit()
     bot.answer_callback_query(call.id, f"💰 Продано {qty} шт. за {total_gold} золота.")
@@ -1474,7 +1459,6 @@ def accept_duel_callback(call):
     if user_id in pvp_duels:
         del pvp_duels[user_id]
     
-    # Увеличиваем счётчик дуэлей для обоих
     save_player(user_id, total_duels=player1['total_duels'] + 1)
     save_player(opponent_id, total_duels=player2['total_duels'] + 1)
     
@@ -1641,7 +1625,6 @@ def battle_action(message):
         exp_gain = monster.get('exp', 20)
         gold_gain = random.randint(monster.get('gold_min', 2), monster.get('gold_max', 8))
         level_up = gain_exp(user_id, exp_gain)
-        # Обновляем статистику
         save_player(user_id, gold=player['gold'] + gold_gain, total_kills=player['total_kills'] + 1,
                     total_gold_earned=player['total_gold_earned'] + gold_gain)
         loot_msg = ""
@@ -1713,12 +1696,10 @@ def battle_action(message):
                 del battle_states[user_id]
             exp_loss = int(player['exp'] * 0.1)
             new_exp = max(0, player['exp'] - exp_loss)
-            # Возрождение на перекрёстке
             save_player(user_id, hp=max_hp, exp=new_exp, location='start')
             bot.reply_to(message, f"💀 **Вы погибли!** Потеряно {exp_loss} опыта.\n\n🔄 Вы возродились на **Перекрёстке**.", reply_markup=main_menu_keyboard(), parse_mode='Markdown')
             return
     else:
-        # PvP: ход оппонента (автоматическая атака)
         opponent_id = state.get('opponent_id')
         if opponent_id:
             opp_player = get_player(opponent_id)
