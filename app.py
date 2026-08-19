@@ -266,6 +266,7 @@ registration_states = {}
 battle_states = {}
 pvp_duels = {}
 restore_cooldowns = {}
+pending_monsters = {}   # user_id -> монстр, ожидающий подтверждения боя
 
 # ========== ФУНКЦИИ ИГРОКА ==========
 def get_player(user_id):
@@ -536,10 +537,11 @@ def battle_keyboard():
     kb.add('⚔️ Атаковать', '🛡️ Защита', '✨ Способность', '💤 Восстановление', '🧪 Зелье', '🏃 Сбежать')
     return kb
 
-def battle_status_text(player, monster, total_stats):
+def battle_status_text(player, monster, total_stats, is_pvp=False):
+    hp_label = "HP противника" if is_pvp else "HP монстра"
     return (f"❤️ Ваше HP: {player['hp']}/{total_stats['max_hp']}\n"
             f"⚡ Энергия: {player['energy']}/{total_stats['max_energy']}\n"
-            f"❤️ HP монстра: {monster['hp']}")
+            f"❤️ {hp_label}: {monster['hp']}")
 
 # ========== МЕНЮ СПОСОБНОСТЕЙ ==========
 def abilities_menu(user_id):
@@ -879,9 +881,12 @@ def hunt_text(message):
     if user_id in battle_states:
         bot.reply_to(message, "Вы уже в бою!")
         return
+    # Генерируем монстра
     monster = get_monster_for_location(player['location'])
+    # Сохраняем для дальнейшего использования
+    pending_monsters[user_id] = monster
     keyboard = telebot.types.InlineKeyboardMarkup(row_width=2)
-    keyboard.add(telebot.types.InlineKeyboardButton("⚔️ Сражаться!", callback_data=f"fight_{monster['name']}"))
+    keyboard.add(telebot.types.InlineKeyboardButton("⚔️ Сражаться!", callback_data="fight_confirm"))
     keyboard.add(telebot.types.InlineKeyboardButton("🏃 Убежать", callback_data="flee_encounter"))
     bot.send_message(user_id, f"⚔️ Вы встретили **{monster['rank']}** монстра **{monster['name']}**!\n"
                               f"❤️ HP: {monster['hp']}\n⚔️ Атака: {monster['attack']}, 🛡️ Защита: {monster['defense']}\n"
@@ -970,24 +975,32 @@ def stat_callback(call):
         text, keyboard = result
         bot.edit_message_text(text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=keyboard)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('fight_'))
-def fight_callback(call):
+@bot.callback_query_handler(func=lambda call: call.data == 'fight_confirm')
+def fight_confirm_callback(call):
     user_id = call.message.chat.id
     player = get_player(user_id)
     if not player:
+        bot.answer_callback_query(call.id, "Ошибка персонажа.")
         return
-    monster = get_monster_for_location(player['location'])
+    # Получаем монстра из хранилища
+    if user_id not in pending_monsters:
+        bot.answer_callback_query(call.id, "Монстр не найден. Начните охоту заново.")
+        return
+    monster = pending_monsters.pop(user_id)  # извлекаем и удаляем
     battle_states[user_id] = {'monster': monster, 'defending': False, 'restore_used': False, 'turn': 'player'}
     total = get_total_stats(player)
     bot.send_message(user_id, f"⚔️ Вы сражаетесь с {monster['rank']} монстром {monster['name']}!\n"
                               f"{battle_status_text(player, monster, total)}\n\nВаш ход.",
                      reply_markup=battle_keyboard())
     bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
-    bot.answer_callback_query(call.id)
+    bot.answer_callback_query(call.id, "Бой начался!")
 
 @bot.callback_query_handler(func=lambda call: call.data == 'flee_encounter')
 def flee_encounter_callback(call):
-    bot.edit_message_text("🏃 Вы убежали.", chat_id=call.message.chat.id, message_id=call.message.message_id)
+    user_id = call.message.chat.id
+    if user_id in pending_monsters:
+        del pending_monsters[user_id]
+    bot.edit_message_text("🏃 Вы убежали от монстра.", chat_id=call.message.chat.id, message_id=call.message.message_id)
     bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('go_to_') or call.data == 'cancel_go')
@@ -1244,14 +1257,14 @@ def accept_duel_callback(call):
     bot.send_message(
         user_id,
         f"⚔️ Дуэль началась! Ваш противник — {player2['name']}.\n"
-        f"{battle_status_text(player1, monster_for_player1, total1)}\n\n"
+        f"{battle_status_text(player1, monster_for_player1, total1, is_pvp=True)}\n\n"
         "Ваш ход. Выберите действие:",
         reply_markup=battle_keyboard()
     )
     bot.send_message(
         opponent_id,
         f"⚔️ Дуэль началась! Ваш противник — {player1['name']}.\n"
-        f"{battle_status_text(player2, monster_for_player2, total2)}\n\n"
+        f"{battle_status_text(player2, monster_for_player2, total2, is_pvp=True)}\n\n"
         "Ваш ход. Выберите действие:",
         reply_markup=battle_keyboard()
     )
@@ -1435,7 +1448,8 @@ def battle_action(message):
         return
 
     # Ход монстра (для PvP упрощённо)
-    if not state.get('is_pvp', False):
+    is_pvp = state.get('is_pvp', False)
+    if not is_pvp:
         uses_ability = random.random() < 0.4
         if uses_ability and 'ability' in monster:
             ability_name = monster['ability']
@@ -1507,7 +1521,7 @@ def battle_action(message):
 
     if user_id in battle_states:
         bot.reply_to(message,
-                     f"{battle_status_text(player, monster, total)}\n\nВаш ход.",
+                     f"{battle_status_text(player, monster, total, is_pvp)}\n\nВаш ход.",
                      reply_markup=battle_keyboard())
 
 # ========== ОБРАБОТЧИК ВЫБОРА СПОСОБНОСТИ ==========
@@ -1562,8 +1576,9 @@ def use_ability_callback(call):
         bot.reply_to(call.message, f"🎉 Вы победили {monster['name']}!", reply_markup=main_menu_keyboard())
         return
     total = get_total_stats(player)
+    is_pvp = state.get('is_pvp', False)
     bot.send_message(user_id,
-                     f"{battle_status_text(player, monster, total)}\n\nВаш ход.",
+                     f"{battle_status_text(player, monster, total, is_pvp)}\n\nВаш ход.",
                      reply_markup=battle_keyboard())
 
 @bot.callback_query_handler(func=lambda call: call.data == 'back_to_battle')
@@ -1577,7 +1592,8 @@ def back_to_battle_callback(call):
         return
     monster = battle_states[user_id]['monster']
     total = get_total_stats(player)
-    bot.edit_message_text(f"{battle_status_text(player, monster, total)}\n\nВаш ход.",
+    is_pvp = battle_states[user_id].get('is_pvp', False)
+    bot.edit_message_text(f"{battle_status_text(player, monster, total, is_pvp)}\n\nВаш ход.",
                           chat_id=call.message.chat.id, message_id=call.message.message_id,
                           reply_markup=battle_keyboard())
     bot.answer_callback_query(call.id)
