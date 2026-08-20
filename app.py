@@ -943,6 +943,7 @@ def profile_cmd(message):
             f"💰 Всего заработано золота: {player['total_gold_earned']}")
     bot.reply_to(message, text, parse_mode='Markdown')
 
+
 @bot.message_handler(commands=['map'])
 def map_cmd(message):
     user_id = message.chat.id
@@ -952,13 +953,23 @@ def map_cmd(message):
         return
     current = player['location']
     text = "🗺️ **Карта мира**\n\n"
-    for loc_id, loc_data in locations.items():
-        marker = "📍" if loc_id == current else "▪️"
-        level_info = f"(треб. ур. {loc_data['min_level']})"
-        text += f"{marker} **{loc_data['name']}** {level_info}\n"
-        if loc_data['exits']:
-            exits = [locations[eid]['name'] for eid in loc_data['exits'] if eid in locations]
-            text += f"   → {', '.join(exits)}\n"
+    # Группируем по веткам (для красоты)
+    branches = {
+        '🌊 Вода': ['south_pole', 'ice_caves', 'ocean_depths', 'sunken_temple'],
+        '🌍 Земля': ['omashu', 'earth_kingdom', 'sands_of_time', 'crystal_caverns', 'whispering_dunes'],
+        '🔥 Огонь': ['fire_capital', 'volcano', 'ash_plains', 'inferno_keep'],
+        '🌪️ Воздух': ['western_temple', 'sky_garden', 'cloud_heights', 'celestial_peak'],
+        '🌲 Другие': ['spirit_forest', 'death_mountain']
+    }
+    for branch_name, loc_ids in branches.items():
+        text += f"**{branch_name}**\n"
+        for loc_id in loc_ids:
+            loc = locations.get(loc_id)
+            if not loc:
+                continue
+            marker = "📍" if loc_id == current else "▪️"
+            level_info = f"(ур. {loc['min_level']})"
+            text += f"  {marker} {loc['name']} {level_info}\n"
         text += "\n"
     bot.reply_to(message, text, parse_mode='Markdown')
 
@@ -970,14 +981,14 @@ def location_cmd(message):
         return
     loc_data = locations.get(player['location'], locations['start'])
     text = f"🏠 **{loc_data['name']}**\n\n{loc_data['desc']}\n"
-    text += f"🎯 Требуемый уровень: {loc_data['min_level']}\n"
+    text += f"🎯 **Требуемый уровень:** {loc_data['min_level']}\n"
     if loc_data.get('has_shop'):
         text += "\n🛒 Здесь есть магазин!"
     if loc_data.get('has_npc'):
-        text += f"\n👤 Здесь вы можете поговорить с {loc_data['npc_name']}."
+        text += f"\n👤 Здесь вы можете поговорить с **{loc_data['npc_name']}**."
     if loc_data['exits']:
         exits_names = [locations[eid]['name'] for eid in loc_data['exits'] if eid in locations]
-        text += "\n\n🚪 Выходы: " + ", ".join(exits_names)
+        text += "\n\n🚪 **Выходы:** " + ", ".join(exits_names)
     bot.reply_to(message, text, parse_mode='Markdown')
 
 @bot.message_handler(commands=['stats'])
