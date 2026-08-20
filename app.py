@@ -189,9 +189,9 @@ def is_developer(user_id):
 @bot.message_handler(commands=['myid'])
 def myid_cmd(message):
     user_id = message.from_user.id
-    bot.reply_to(message, f"Ваш user_id: `{user_id}`", parse_mode='Markdown')
+    bot.reply_to(message, f"Ваш user_id: {user_id}")
 
-# ========== ФУНКЦИИ РАБОТЫ С БД (локальные курсоры) ==========
+# ========== ФУНКЦИИ РАБОТЫ С БД ==========
 def get_player(user_id):
     c = conn.cursor()
     c.execute("SELECT * FROM players WHERE user_id = ?", (user_id,))
@@ -535,7 +535,7 @@ def battle_status_text(player, monster, total_stats, is_pvp=False):
             f"⚡ Энергия: {player['energy']}/{total_stats['max_energy']}\n"
             f"❤️ {hp_label}: {monster['hp']}")
 
-# ========== МЕНЮ (inline-клавиатуры) ==========
+# ========== МЕНЮ ==========
 def abilities_menu(user_id):
     abilities = get_player_abilities(user_id)
     if not abilities:
@@ -698,18 +698,18 @@ def get_ability_heal(ability, player_level):
 def dev_help(message):
     if not is_developer(message.from_user.id):
         return
-    help_text = "🔧 **Команды разработчика:**\n\n"
-    help_text += "/dev_add_exp <количество> - добавить опыт\n"
-    help_text += "/dev_set_level <уровень> - установить уровень\n"
-    help_text += "/dev_add_gold <количество> - добавить золото\n"
-    help_text += "/dev_add_item <название> [количество] - добавить предмет\n"
-    help_text += "/dev_teleport <id_локации> - телепорт\n"
+    help_text = "🔧 <b>Команды разработчика:</b>\n\n"
+    help_text += "/dev_add_exp &lt;количество&gt; - добавить опыт\n"
+    help_text += "/dev_set_level &lt;уровень&gt; - установить уровень\n"
+    help_text += "/dev_add_gold &lt;количество&gt; - добавить золото\n"
+    help_text += "/dev_add_item &lt;название&gt; [количество] - добавить предмет\n"
+    help_text += "/dev_teleport &lt;id_локации&gt; - телепорт\n"
     help_text += "/dev_reset_quest - сбросить квест\n"
     help_text += "/dev_heal - полное восстановление\n"
     help_text += "/dev_give_all_items - выдать все предметы\n"
-    help_text += "/dev_spawn <имя_монстра> - спавн монстра для боя\n"
-    help_text += "/dev_kill - убить текущего монстра\n"
-    bot.reply_to(message, help_text, parse_mode='Markdown')
+    help_text += "/dev_spawn &lt;имя_монстра&gt; - спавн монстра для боя\n"
+    help_text += "/dev_kill - убить текущего монстра"
+    bot.reply_to(message, help_text, parse_mode='HTML')
 
 @bot.message_handler(commands=['dev_add_exp'])
 def dev_add_exp(message):
@@ -1861,7 +1861,7 @@ def back_to_battle_callback(call):
                           reply_markup=battle_keyboard(), parse_mode='Markdown')
     bot.answer_callback_query(call.id)
 
-# ========== РЕГИСТРАЦИЯ (обновлённая, с описанием наций) ==========
+# ========== РЕГИСТРАЦИЯ (обновлённая) ==========
 @bot.message_handler(func=lambda msg: msg.chat.id in registration_states)
 def registration_handler(message):
     user_id = message.chat.id
