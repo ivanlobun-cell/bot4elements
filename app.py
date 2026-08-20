@@ -127,30 +127,30 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM abilities")
     if c.fetchone()[0] == 0:
         abilities_data = [
-            ('❄️ Ледяная стрела', 'Вода', 'Выпускает ледяной снаряд.', 15, 0, 10, 5, 1.15),
-            ('💧 Исцеление', 'Вода', 'Восстанавливает часть здоровья.', 0, 20, 15, 10, 1.2),
+            ('❄️ Ледяная стрела', 'Вода', 'Выпускает ледяной снаряд.', 15, 0, 10, 5, 1.0),
+            ('💧 Исцеление', 'Вода', 'Восстанавливает часть здоровья.', 0, 20, 15, 10, 1.0),
             ('🛡️ Ледяной щит', 'Вода', 'Создаёт ледяную защиту.', 0, 0, 10, 15, 1.0),
-            ('🌊 Цунами', 'Вода', 'Огромная волна.', 30, 0, 20, 20, 1.1),
-            ('👻 Призыв духа', 'Вода', 'Дух воды атакует и лечит.', 10, 15, 25, 25, 1.15),
-            ('🌀 Ледяная буря', 'Вода', 'Ледяной вихрь.', 45, 0, 30, 30, 1.1),
-            ('🗿 Каменный кулак', 'Земля', 'Мощный удар.', 18, 0, 10, 5, 1.15),
+            ('🌊 Цунами', 'Вода', 'Огромная волна.', 30, 0, 20, 20, 1.0),
+            ('👻 Призыв духа', 'Вода', 'Дух воды атакует и лечит.', 10, 15, 25, 25, 1.0),
+            ('🌀 Ледяная буря', 'Вода', 'Ледяной вихрь.', 45, 0, 30, 30, 1.0),
+            ('🗿 Каменный кулак', 'Земля', 'Мощный удар.', 18, 0, 10, 5, 1.0),
             ('🪨 Земляная броня', 'Земля', 'Увеличивает защиту.', 0, 0, 15, 10, 1.0),
-            ('🌍 Дрожь земли', 'Земля', 'Землетрясение.', 25, 0, 15, 15, 1.1),
+            ('🌍 Дрожь земли', 'Земля', 'Землетрясение.', 25, 0, 15, 15, 1.0),
             ('🧱 Каменная стена', 'Земля', 'Стена, уменьшающая урон.', 0, 0, 20, 20, 1.0),
-            ('💢 Гнев земли', 'Земля', 'Разрушительная атака.', 35, 0, 20, 20, 1.15),
-            ('🌋 Землетрясение', 'Земля', 'Огромный урон.', 55, 0, 30, 30, 1.1),
-            ('🔥 Огненный шар', 'Огонь', 'Огненный снаряд.', 20, 0, 10, 5, 1.15),
+            ('💢 Гнев земли', 'Земля', 'Разрушительная атака.', 35, 0, 20, 20, 1.0),
+            ('🌋 Землетрясение', 'Земля', 'Огромный урон.', 55, 0, 30, 30, 1.0),
+            ('🔥 Огненный шар', 'Огонь', 'Огненный снаряд.', 20, 0, 10, 5, 1.0),
             ('🛡️ Огненный щит', 'Огонь', 'Повышает атаку.', 0, 0, 15, 10, 1.0),
-            ('🔥 Пламя', 'Огонь', 'Поджигает врага.', 28, 0, 15, 15, 1.1),
-            ('☄️ Огненный дождь', 'Огонь', 'Град огненных шаров.', 35, 0, 20, 20, 1.15),
-            ('💥 Вспышка', 'Огонь', 'Критическая атака.', 40, 0, 25, 25, 1.1),
-            ('🌪️ Пепельный вихрь', 'Огонь', 'Огненный смерч.', 60, 0, 30, 30, 1.1),
-            ('💨 Воздушный удар', 'Воздух', 'Удар воздухом.', 15, 0, 8, 5, 1.15),
+            ('🔥 Пламя', 'Огонь', 'Поджигает врага.', 28, 0, 15, 15, 1.0),
+            ('☄️ Огненный дождь', 'Огонь', 'Град огненных шаров.', 35, 0, 20, 20, 1.0),
+            ('💥 Вспышка', 'Огонь', 'Критическая атака.', 40, 0, 25, 25, 1.0),
+            ('🌪️ Пепельный вихрь', 'Огонь', 'Огненный смерч.', 60, 0, 30, 30, 1.0),
+            ('💨 Воздушный удар', 'Воздух', 'Удар воздухом.', 15, 0, 8, 5, 1.0),
             ('🍃 Ветряной щит', 'Воздух', 'Увеличивает уклонение.', 0, 0, 12, 10, 1.0),
-            ('🌪️ Ураган', 'Воздух', 'Мощный ураган.', 25, 0, 15, 15, 1.1),
-            ('🌬️ Порыв ветра', 'Воздух', 'Ослабляет защиту врага.', 30, 0, 20, 20, 1.15),
-            ('⛈️ Шторм', 'Воздух', 'Грозовой шторм.', 40, 0, 25, 25, 1.1),
-            ('🌀 Ветряной смерч', 'Воздух', 'Огромный смерч.', 55, 0, 30, 30, 1.1),
+            ('🌪️ Ураган', 'Воздух', 'Мощный ураган.', 25, 0, 15, 15, 1.0),
+            ('🌬️ Порыв ветра', 'Воздух', 'Ослабляет защиту врага.', 30, 0, 20, 20, 1.0),
+            ('⛈️ Шторм', 'Воздух', 'Грозовой шторм.', 40, 0, 25, 25, 1.0),
+            ('🌀 Ветряной смерч', 'Воздух', 'Огромный смерч.', 55, 0, 30, 30, 1.0),
         ]
         for ab in abilities_data:
             c.execute('''
@@ -178,14 +178,13 @@ restore_cooldowns = {}
 pending_monsters = {}
 
 # ========== СПИСОК РАЗРАБОТЧИКОВ (по user_id) ==========
-# Замените 123456789 на ваш реальный user_id (узнайте через /myid)
-DEVELOPER_IDS = [402629657]  # <-- СЮДА ВСТАВЬТЕ СВОЙ ID, КОТОРЫЙ ВЫ УЗНАЕТЕ ЧЕРЕЗ /myid
+# Замените 123456789 на ваш реальный user_id
+DEVELOPER_IDS = [402629657]  # <-- СЮДА ВСТАВЬТЕ СВОЙ ID
 
 def is_developer(user_id):
-    """Проверяет, является ли пользователь разработчиком."""
     return user_id in DEVELOPER_IDS
 
-# ========== КОМАНДА ДЛЯ УЗНАВАНИЯ СВОЕГО USER_ID ==========
+# ========== КОМАНДА ДЛЯ УЗНАВАНИЯ USER_ID ==========
 @bot.message_handler(commands=['myid'])
 def myid_cmd(message):
     user_id = message.from_user.id
@@ -286,13 +285,16 @@ def upgrade_ability(user_id, ability_id):
     row = c.fetchone()
     if row:
         new_level = row[0] + 1
+        if new_level > 3:
+            c.close()
+            return None, "Максимальный уровень способности — 3"
         c.execute("UPDATE player_abilities SET level = ? WHERE user_id = ? AND ability_id = ?", (new_level, user_id, ability_id))
     else:
         new_level = 2
         c.execute("INSERT INTO player_abilities (user_id, ability_id, level) VALUES (?, ?, ?)", (user_id, ability_id, 2))
     conn.commit()
     c.close()
-    return new_level
+    return new_level, None
 
 def get_monster_for_location(location_id):
     possible = [m for m in monster_templates.values() if location_id in m.get('locations', [])]
@@ -333,19 +335,17 @@ def gain_exp(user_id, amount):
     while new_exp >= 100 * player['level']:
         new_exp -= 100 * player['level']
         player['level'] += 1
-        player['max_hp'] += 10
-        player['hp'] = player['max_hp']
-        player['attack'] += 2
-        player['defense'] += 1
-        player['max_energy'] += 5
-        player['energy'] = player['max_energy']
-        player['skill_points'] += 1
-        player['stat_points'] += 5
+        # Новая система: никакого автоматического роста статов
+        # Даём 4 очка характеристик и 1 очко навыков каждые 3 уровня
+        player['stat_points'] += 4
+        if player['level'] % 3 == 0:
+            player['skill_points'] += 1
         level_up = True
     save_player(user_id,
-                exp=new_exp, level=player['level'], max_hp=player['max_hp'], hp=player['hp'],
-                attack=player['attack'], defense=player['defense'], max_energy=player['max_energy'],
-                energy=player['energy'], skill_points=player['skill_points'], stat_points=player['stat_points'])
+                exp=new_exp,
+                level=player['level'],
+                stat_points=player['stat_points'],
+                skill_points=player['skill_points'])
     return level_up
 
 def heal_player(player, percent_hp=0.2, percent_energy=0.3):
@@ -535,7 +535,7 @@ def battle_status_text(player, monster, total_stats, is_pvp=False):
             f"⚡ Энергия: {player['energy']}/{total_stats['max_energy']}\n"
             f"❤️ {hp_label}: {monster['hp']}")
 
-# ========== МЕНЮ ==========
+# ========== МЕНЮ (inline-клавиатуры) ==========
 def abilities_menu(user_id):
     abilities = get_player_abilities(user_id)
     if not abilities:
@@ -546,17 +546,27 @@ def abilities_menu(user_id):
         ab_id, name, nation, desc, base_dmg, base_heal, cost, unlock, mult, level = ab
         if level is None:
             level = 1
+        # Расчёт реального урона/лечения с учётом уровня способности
+        if base_dmg > 0:
+            dmg = int(base_dmg * (1.0 + (level - 1) * 0.7))  # уровень 1: ×1, уровень 2: ×1.7, уровень 3: ×2.4
+        else:
+            dmg = 0
+        if base_heal > 0:
+            heal = int(base_heal * (1.0 + (level - 1) * 0.7))
+        else:
+            heal = 0
         text += f"**{name}** (ур. {level})\n"
         text += f"_{desc}_\n"
-        if base_dmg > 0:
-            dmg = get_ability_damage(ab, 0)
+        if dmg > 0:
             text += f"  ⚔️ Урон: {dmg}, ⚡ Стоимость: {cost} энергии\n"
-        if base_heal > 0:
-            heal = get_ability_heal(ab, 0)
+        if heal > 0:
             text += f"  💚 Лечение: {heal}, ⚡ Стоимость: {cost} энергии\n"
+        text += f"  ⏳ Кулдаун: 2 хода\n"
         player = get_player(user_id)
-        if player and player['skill_points'] > 0:
-            keyboard.add(telebot.types.InlineKeyboardButton(f"⬆️ Улучшить {name} (1 очко)", callback_data=f"upg_ability_{ab_id}"))
+        if player and player['skill_points'] > 0 and level < 3:
+            keyboard.add(telebot.types.InlineKeyboardButton(f"⬆️ Улучшить {name} (уровень {level+1})", callback_data=f"upg_ability_{ab_id}"))
+        elif level >= 3:
+            keyboard.add(telebot.types.InlineKeyboardButton(f"✅ {name} достиг максимума", callback_data="noop"))
     keyboard.add(telebot.types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu"))
     return text, keyboard
 
@@ -681,16 +691,14 @@ def equipment_menu(user_id):
     return text, keyboard
 
 # ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ СПОСОБНОСТЕЙ ==========
-def get_ability_damage(ability, player_level):
+def get_ability_damage(ability, player_level, ability_level=1):
     base = ability[4]
-    upgrade_level = ability[9] if ability[9] else 1
-    multiplier = ability[8] ** (upgrade_level - 1)
+    multiplier = 1.0 + (ability_level - 1) * 0.7  # 1→1, 2→1.7, 3→2.4
     return int(base * multiplier)
 
-def get_ability_heal(ability, player_level):
+def get_ability_heal(ability, player_level, ability_level=1):
     base = ability[5]
-    upgrade_level = ability[9] if ability[9] else 1
-    multiplier = ability[8] ** (upgrade_level - 1)
+    multiplier = 1.0 + (ability_level - 1) * 0.7
     return int(base * multiplier)
 
 # ========== СКРЫТЫЕ КОМАНДЫ ДЛЯ РАЗРАБОТЧИКА ==========
@@ -740,6 +748,9 @@ def dev_set_level(message):
         if not player:
             bot.reply_to(message, "❌ Персонаж не найден.")
             return
+        # Пересчёт очков: выдаём за каждый уровень 4 стат-очка и скилл за каждые 3 уровня
+        # Но мы не пересчитываем старые статы, просто меняем уровень и выдаём очки за новые уровни
+        # Для простоты просто меняем уровень без пересчёта
         save_player(message.from_user.id, level=new_level)
         bot.reply_to(message, f"✅ Уровень установлен на {new_level}.")
     except ValueError:
@@ -860,7 +871,9 @@ def dev_spawn(message):
         'monster': found,
         'defending': False,
         'restore_used': False,
-        'turn': 'player'
+        'turn': 'player',
+        'used_ability_this_turn': False,
+        'ability_cooldowns': {}
     }
     player = get_player(message.from_user.id)
     total = get_total_stats(player)
@@ -1068,7 +1081,8 @@ def raid_cmd(message):
         'defending': False,
         'restore_used': False,
         'turn': 'player',
-        'is_raid': True
+        'used_ability_this_turn': False,
+        'ability_cooldowns': {}
     }
     player = get_player(user_id)
     total = get_total_stats(player)
@@ -1229,7 +1243,14 @@ def fight_confirm_callback(call):
         bot.answer_callback_query(call.id, "Монстр не найден. Начните охоту заново.")
         return
     monster = pending_monsters.pop(user_id)
-    battle_states[user_id] = {'monster': monster, 'defending': False, 'restore_used': False, 'turn': 'player'}
+    battle_states[user_id] = {
+        'monster': monster,
+        'defending': False,
+        'restore_used': False,
+        'turn': 'player',
+        'used_ability_this_turn': False,
+        'ability_cooldowns': {}
+    }
     total = get_total_stats(player)
     bot.send_message(user_id, f"⚔️ **Вы вступаете в бой с {monster['rank']} монстром {monster['name']}**\n\n"
                               f"{battle_status_text(player, monster, total)}\n\n"
@@ -1441,7 +1462,10 @@ def upgrade_ability_callback(call):
     if player['skill_points'] <= 0:
         bot.answer_callback_query(call.id, "Нет очков навыков.")
         return
-    new_level = upgrade_ability(user_id, ability_id)
+    new_level, err = upgrade_ability(user_id, ability_id)
+    if err:
+        bot.answer_callback_query(call.id, err)
+        return
     save_player(user_id, skill_points=player['skill_points'] - 1)
     bot.answer_callback_query(call.id, f"⬆️ Способность улучшена до уровня {new_level}.")
     result = abilities_menu(user_id)
@@ -1496,6 +1520,8 @@ def accept_duel_callback(call):
         'defending': False,
         'restore_used': False,
         'turn': 'player',
+        'used_ability_this_turn': False,
+        'ability_cooldowns': {},
         'is_pvp': True,
         'opponent_id': opponent_id
     }
@@ -1504,6 +1530,8 @@ def accept_duel_callback(call):
         'defending': False,
         'restore_used': False,
         'turn': 'player',
+        'used_ability_this_turn': False,
+        'ability_cooldowns': {},
         'is_pvp': True,
         'opponent_id': user_id
     }
@@ -1610,32 +1638,48 @@ def battle_action(message):
         player_msg = "🛡️ Вы встаёте в защитную стойку. Следующая атака монстра будет ослаблена."
 
     elif action == '✨ Способность':
-        abilities = get_player_abilities(user_id)
-        if not abilities:
-            player_msg = "📚 Нет доступных способностей."
+        # Проверяем, не использовали ли способность в этом ходу
+        if state.get('used_ability_this_turn', False):
+            player_msg = "⏳ Вы уже использовали способность в этом ходу."
         else:
-            keyboard = telebot.types.InlineKeyboardMarkup(row_width=1)
-            for ab in abilities:
-                ab_id, name, nation, desc, base_dmg, base_heal, cost, unlock, mult, level = ab
-                if level is None:
-                    level = 1
-                dmg = get_ability_damage(ab, player['level']) if base_dmg > 0 else 0
-                heal = get_ability_heal(ab, player['level']) if base_heal > 0 else 0
-                cost_energy = cost
-                if player['energy'] < cost_energy:
-                    continue
-                label = f"{name} (ур.{level})"
-                if dmg > 0:
-                    label += f" ⚔️{dmg}"
-                if heal > 0:
-                    label += f" 💚{heal}"
-                label += f" [⚡{cost_energy}]"
-                keyboard.add(telebot.types.InlineKeyboardButton(label, callback_data=f"use_ability_{ab_id}"))
-            if keyboard.keyboard:
-                bot.send_message(user_id, "✨ **Выберите способность:**", reply_markup=keyboard, parse_mode='Markdown')
-                return
+            abilities = get_player_abilities(user_id)
+            if not abilities:
+                player_msg = "📚 Нет доступных способностей."
             else:
-                player_msg = "⚠️ Недостаточно энергии для способностей."
+                # Фильтруем способности по кулдауну
+                cooldowns = state.get('ability_cooldowns', {})
+                available = []
+                for ab in abilities:
+                    ab_id = ab[0]
+                    # Если способность на кулдауне, пропускаем
+                    if ab_id in cooldowns and cooldowns[ab_id] > 0:
+                        continue
+                    available.append(ab)
+                if not available:
+                    player_msg = "⏳ Все способности на кулдауне."
+                else:
+                    keyboard = telebot.types.InlineKeyboardMarkup(row_width=1)
+                    for ab in available:
+                        ab_id, name, nation, desc, base_dmg, base_heal, cost, unlock, mult, level = ab
+                        if level is None:
+                            level = 1
+                        # Расчёт урона/лечения
+                        dmg = get_ability_damage(ab, player['level'], level) if base_dmg > 0 else 0
+                        heal = get_ability_heal(ab, player['level'], level) if base_heal > 0 else 0
+                        if player['energy'] < cost:
+                            continue
+                        label = f"{name} (ур.{level})"
+                        if dmg > 0:
+                            label += f" ⚔️{dmg}"
+                        if heal > 0:
+                            label += f" 💚{heal}"
+                        label += f" [⚡{cost}]"
+                        keyboard.add(telebot.types.InlineKeyboardButton(label, callback_data=f"use_ability_{ab_id}"))
+                    if keyboard.keyboard:
+                        bot.send_message(user_id, "✨ **Выберите способность:**", reply_markup=keyboard, parse_mode='Markdown')
+                        return
+                    else:
+                        player_msg = "⚠️ Недостаточно энергии для способностей."
 
     elif action == '💤 Восстановление':
         if state.get('restore_used', False):
@@ -1712,6 +1756,7 @@ def battle_action(message):
         bot.reply_to(message, msg, parse_mode='Markdown', reply_markup=main_menu_keyboard())
         return
 
+    # Ход монстра (если игрок не сбежал)
     is_pvp = state.get('is_pvp', False)
     if not is_pvp:
         uses_ability = random.random() < 0.4
@@ -1752,6 +1797,7 @@ def battle_action(message):
             bot.reply_to(message, f"💀 **Вы погибли!** Потеряно {exp_loss} опыта.\n\n🔄 Вы возродились на **Перекрёстке**.", reply_markup=main_menu_keyboard(), parse_mode='Markdown')
             return
     else:
+        # PvP ход оппонента
         opponent_id = state.get('opponent_id')
         if opponent_id:
             opp_player = get_player(opponent_id)
@@ -1782,6 +1828,14 @@ def battle_action(message):
                     bot.reply_to(message, f"💀 **Вы погибли!** Потеряно {exp_loss} опыта.\n\n🔄 Вы возродились на **Перекрёстке**.", reply_markup=main_menu_keyboard(), parse_mode='Markdown')
                     return
 
+    # Обновляем кулдауны (уменьшаем на 1 ход)
+    if 'ability_cooldowns' in state:
+        for ab_id in list(state['ability_cooldowns'].keys()):
+            state['ability_cooldowns'][ab_id] -= 1
+            if state['ability_cooldowns'][ab_id] <= 0:
+                del state['ability_cooldowns'][ab_id]
+    state['used_ability_this_turn'] = False
+
     if user_id in battle_states:
         bot.reply_to(message,
                      f"{battle_status_text(player, monster, total, is_pvp)}\n\n⚔️ **Ваш ход.**",
@@ -1800,6 +1854,16 @@ def use_ability_callback(call):
     player = get_player(user_id)
     if not player:
         return
+    # Проверяем, не использовали ли способность в этом ходу
+    if state.get('used_ability_this_turn', False):
+        bot.answer_callback_query(call.id, "⏳ Вы уже использовали способность в этом ходу.")
+        return
+    # Проверяем кулдаун
+    cooldowns = state.get('ability_cooldowns', {})
+    if ability_id in cooldowns and cooldowns[ability_id] > 0:
+        bot.answer_callback_query(call.id, f"⏳ Способность на кулдауне ещё {cooldowns[ability_id]} ходов.")
+        return
+
     abilities = get_player_abilities(user_id)
     chosen = None
     for ab in abilities:
@@ -1812,8 +1876,8 @@ def use_ability_callback(call):
     ab_id, name, nation, desc, base_dmg, base_heal, cost, unlock, mult, level = chosen
     if level is None:
         level = 1
-    dmg = get_ability_damage(chosen, player['level']) if base_dmg > 0 else 0
-    heal = get_ability_heal(chosen, player['level']) if base_heal > 0 else 0
+    dmg = get_ability_damage(chosen, player['level'], level) if base_dmg > 0 else 0
+    heal = get_ability_heal(chosen, player['level'], level) if base_heal > 0 else 0
     energy_cost = cost
     if player['energy'] < energy_cost:
         bot.answer_callback_query(call.id, f"⚠️ Недостаточно энергии! Нужно {energy_cost}.")
@@ -1830,14 +1894,61 @@ def use_ability_callback(call):
         player_msg = f"✨ **{name}** (эффект не реализован)"
     save_player(user_id, energy=player['energy'] - energy_cost)
     player['energy'] -= energy_cost
+    # Устанавливаем флаг, что способность использована в этом ходу
+    state['used_ability_this_turn'] = True
+    # Устанавливаем кулдаун (2 хода)
+    state['ability_cooldowns'][ab_id] = 2
     bot.answer_callback_query(call.id, f"✅ Использовано {name}.")
     bot.edit_message_text(player_msg, chat_id=call.message.chat.id, message_id=call.message.message_id, parse_mode='Markdown')
 
     if monster['hp'] <= 0:
+        # Победа
+        exp_gain = monster.get('exp', 20)
+        gold_gain = random.randint(monster.get('gold_min', 2), monster.get('gold_max', 8))
+        level_up = gain_exp(user_id, exp_gain)
+        save_player(user_id, gold=player['gold'] + gold_gain, total_kills=player['total_kills'] + 1,
+                    total_gold_earned=player['total_gold_earned'] + gold_gain)
+        loot_msg = ""
+        if 'loot' in monster:
+            for loot_item in monster['loot']:
+                if random.random() < loot_item['chance']:
+                    add_item_to_inventory(user_id, loot_item['item_name'], 1)
+                    loot_msg += f"\n🎁 **+ {loot_item['item_name']}**"
+        if state.get('is_pvp', False):
+            opponent_id = state.get('opponent_id')
+            if opponent_id:
+                save_player(user_id, pvp_wins=player['pvp_wins'] + 1)
+                opp = get_player(opponent_id)
+                if opp:
+                    save_player(opponent_id, pvp_losses=opp['pvp_losses'] + 1)
+                if opponent_id in battle_states:
+                    del battle_states[opponent_id]
+                bot.send_message(opponent_id, f"💔 Вы проиграли дуэль против {player['name']}.")
+        if state.get('is_raid', False):
+            save_player(user_id, last_raid=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            bot.send_message(user_id, "🐉 Рейдовый босс повержен! Возвращайтесь завтра.")
+        player_loc = player['location']
+        quest_complete, quest_msg = update_daily_quest(user_id, player_loc)
+        if quest_complete and quest_msg:
+            bot.send_message(user_id, quest_msg, parse_mode='Markdown')
         if user_id in battle_states:
             del battle_states[user_id]
-        bot.reply_to(call.message, f"🎉 **Вы победили {monster['name']}!**", reply_markup=main_menu_keyboard(), parse_mode='Markdown')
+        msg = f"🎉 **Победа!**\nПолучено опыта: {exp_gain}\n💰 Золота: {gold_gain}" + loot_msg
+        if level_up:
+            msg += "\n🎊 **Уровень повышен!**"
+        bot.reply_to(call.message, msg, parse_mode='Markdown', reply_markup=main_menu_keyboard())
         return
+    # Продолжаем бой (ход монстра)
+    # Упрощённо: вызываем боевую логику хода монстра
+    # Но чтобы не дублировать, можно просто вызвать обработку хода монстра из battle_action
+    # Однако здесь мы уже в callback, поэтому проще отправить сообщение и завершить
+    # Следующий ход будет после ответа монстра.
+    # Обновляем кулдауны
+    for ab_id in list(state['ability_cooldowns'].keys()):
+        state['ability_cooldowns'][ab_id] -= 1
+        if state['ability_cooldowns'][ab_id] <= 0:
+            del state['ability_cooldowns'][ab_id]
+    state['used_ability_this_turn'] = False
     total = get_total_stats(player)
     is_pvp = state.get('is_pvp', False)
     bot.send_message(user_id,
@@ -1861,7 +1972,7 @@ def back_to_battle_callback(call):
                           reply_markup=battle_keyboard(), parse_mode='Markdown')
     bot.answer_callback_query(call.id)
 
-# ========== РЕГИСТРАЦИЯ (обновлённая) ==========
+# ========== РЕГИСТРАЦИЯ ==========
 @bot.message_handler(func=lambda msg: msg.chat.id in registration_states)
 def registration_handler(message):
     user_id = message.chat.id
