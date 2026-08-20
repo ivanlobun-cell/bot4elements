@@ -177,16 +177,19 @@ pvp_duels = {}
 restore_cooldowns = {}
 pending_monsters = {}
 
-# ========== СПИСОК РАЗРАБОТЧИКОВ (по username) ==========
-DEVELOPER_USERNAMES = ['diasper']
+# ========== СПИСОК РАЗРАБОТЧИКОВ (по user_id) ==========
+# Замените 123456789 на ваш реальный user_id (узнайте через /myid)
+DEVELOPER_IDS = [402629657]  # <-- СЮДА ВСТАВЬТЕ СВОЙ ID, КОТОРЫЙ ВЫ УЗНАЕТЕ ЧЕРЕЗ /myid
 
 def is_developer(user_id):
-    """Проверяет, является ли пользователь разработчиком (по username)."""
-    try:
-        user = bot.get_chat(user_id)
-        return user.username in DEVELOPER_USERNAMES
-    except:
-        return False
+    """Проверяет, является ли пользователь разработчиком."""
+    return user_id in DEVELOPER_IDS
+
+# ========== КОМАНДА ДЛЯ УЗНАВАНИЯ СВОЕГО USER_ID ==========
+@bot.message_handler(commands=['myid'])
+def myid_cmd(message):
+    user_id = message.from_user.id
+    bot.reply_to(message, f"Ваш user_id: `{user_id}`", parse_mode='Markdown')
 
 # ========== ФУНКЦИИ РАБОТЫ С БД (локальные курсоры) ==========
 def get_player(user_id):
@@ -737,7 +740,6 @@ def dev_set_level(message):
         if not player:
             bot.reply_to(message, "❌ Персонаж не найден.")
             return
-        # Упрощённый пересчёт (уровень меняется, статы не пересчитываются, но для тестов сойдёт)
         save_player(message.from_user.id, level=new_level)
         bot.reply_to(message, f"✅ Уровень установлен на {new_level}.")
     except ValueError:
