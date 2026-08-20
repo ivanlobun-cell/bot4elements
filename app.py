@@ -9,7 +9,7 @@ import time
 import math
 from datetime import datetime, timedelta
 
-# ========== ИМПОРТ ДАННЫХ ИЗ data.py ==========
+# ========== ИМПОРТ ДАННЫХ ==========
 from data import locations, monster_templates, items_data, raid_boss, daily_quests_pool
 
 # ========== ТОКЕН ==========
@@ -19,181 +19,182 @@ if not TOKEN:
 
 bot = telebot.TeleBot(TOKEN)
 
-# ========== БАЗА ДАННЫХ ==========
+# ========== ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ==========
 conn = sqlite3.connect('game.db', check_same_thread=False)
-cursor = conn.cursor()
 
-# Таблица игроков (с полями для квестов и статистикой)
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS players (
-    user_id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,
-    nation TEXT NOT NULL,
-    level INTEGER DEFAULT 1,
-    exp INTEGER DEFAULT 0,
-    hp INTEGER DEFAULT 100,
-    max_hp INTEGER DEFAULT 100,
-    attack INTEGER DEFAULT 10,
-    defense INTEGER DEFAULT 5,
-    location TEXT DEFAULT 'start',
-    energy INTEGER DEFAULT 50,
-    max_energy INTEGER DEFAULT 50,
-    skill_points INTEGER DEFAULT 0,
-    stat_points INTEGER DEFAULT 0,
-    gold INTEGER DEFAULT 0,
-    weapon_slot INTEGER DEFAULT 0,
-    armor_slot INTEGER DEFAULT 0,
-    helmet_slot INTEGER DEFAULT 0,
-    accessory_slot INTEGER DEFAULT 0,
-    last_daily_quest TIMESTAMP,
-    daily_quest TEXT,
-    daily_quest_progress INTEGER DEFAULT 0,
-    daily_quest_target TEXT,
-    daily_quest_count INTEGER DEFAULT 0,
-    daily_quest_reward_exp INTEGER DEFAULT 0,
-    daily_quest_reward_gold INTEGER DEFAULT 0,
-    last_raid TIMESTAMP,
-    pvp_wins INTEGER DEFAULT 0,
-    pvp_losses INTEGER DEFAULT 0,
-    total_kills INTEGER DEFAULT 0,
-    total_duels INTEGER DEFAULT 0,
-    total_quests INTEGER DEFAULT 0,
-    total_gold_earned INTEGER DEFAULT 0
-)
-''')
-conn.commit()
-
-# Добавление недостающих столбцов (если их нет)
-cursor.execute("PRAGMA table_info(players)")
-existing_cols = [c[1] for c in cursor.fetchall()]
-for col in ['last_daily_quest', 'daily_quest', 'daily_quest_progress', 'daily_quest_target',
-            'daily_quest_count', 'daily_quest_reward_exp', 'daily_quest_reward_gold',
-            'last_raid', 'pvp_wins', 'pvp_losses', 'total_kills', 'total_duels',
-            'total_quests', 'total_gold_earned']:
-    if col not in existing_cols:
-        cursor.execute(f"ALTER TABLE players ADD COLUMN {col} DEFAULT NULL")
-conn.commit()
-
-# Таблица предметов
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    rarity TEXT NOT NULL,
-    description TEXT,
-    attack_bonus INTEGER DEFAULT 0,
-    defense_bonus INTEGER DEFAULT 0,
-    hp_bonus INTEGER DEFAULT 0,
-    energy_bonus INTEGER DEFAULT 0,
-    effect_percent INTEGER DEFAULT 0,
-    price_buy INTEGER DEFAULT 0,
-    price_sell INTEGER DEFAULT 0
-)
-''')
-conn.commit()
-
-cursor.execute("PRAGMA table_info(items)")
-item_cols = [c[1] for c in cursor.fetchall()]
-for col in ['attack_bonus', 'defense_bonus', 'hp_bonus', 'energy_bonus', 'effect_percent']:
-    if col not in item_cols:
-        cursor.execute(f"ALTER TABLE items ADD COLUMN {col} INTEGER DEFAULT 0")
-conn.commit()
-
-# Таблица инвентаря
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS inventory (
-    user_id INTEGER,
-    item_id INTEGER,
-    quantity INTEGER DEFAULT 1,
-    PRIMARY KEY (user_id, item_id)
-)
-''')
-conn.commit()
-
-# Таблица способностей игрока
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS player_abilities (
-    user_id INTEGER,
-    ability_id INTEGER,
-    level INTEGER DEFAULT 1,
-    PRIMARY KEY (user_id, ability_id)
-)
-''')
-conn.commit()
-
-# Таблица способностей (описания)
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS abilities (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    nation TEXT NOT NULL,
-    description TEXT,
-    base_damage INTEGER DEFAULT 0,
-    base_heal INTEGER DEFAULT 0,
-    energy_cost INTEGER DEFAULT 10,
-    unlock_level INTEGER DEFAULT 5,
-    upgrade_multiplier REAL DEFAULT 1.1
-)
-''')
-conn.commit()
-
-# Заполнение способностей (если пусто)
-cursor.execute("SELECT COUNT(*) FROM abilities")
-if cursor.fetchone()[0] == 0:
-    abilities_data = [
-        ('❄️ Ледяная стрела', 'Вода', 'Выпускает ледяной снаряд, пронзающий врага.', 15, 0, 10, 5, 1.15),
-        ('💧 Исцеление', 'Вода', 'Восстанавливает часть здоровья.', 0, 20, 15, 10, 1.2),
-        ('🛡️ Ледяной щит', 'Вода', 'Создаёт ледяную защиту, уменьшающую урон.', 0, 0, 10, 15, 1.0),
-        ('🌊 Цунами', 'Вода', 'Огромная волна сметает врага.', 30, 0, 20, 20, 1.1),
-        ('👻 Призыв духа', 'Вода', 'Дух воды атакует и лечит.', 10, 15, 25, 25, 1.15),
-        ('🌀 Ледяная буря', 'Вода', 'Ледяной вихрь уничтожает всё на своём пути.', 45, 0, 30, 30, 1.1),
-        ('🗿 Каменный кулак', 'Земля', 'Мощный удар каменной рукой.', 18, 0, 10, 5, 1.15),
-        ('🪨 Земляная броня', 'Земля', 'Увеличивает защиту на время боя.', 0, 0, 15, 10, 1.0),
-        ('🌍 Дрожь земли', 'Земля', 'Вызывает землетрясение, наносящее урон.', 25, 0, 15, 15, 1.1),
-        ('🧱 Каменная стена', 'Земля', 'Возводит каменную стену, сильно снижающую урон.', 0, 0, 20, 20, 1.0),
-        ('💢 Гнев земли', 'Земля', 'Разрушительная атака камнями.', 35, 0, 20, 20, 1.15),
-        ('🌋 Землетрясение', 'Земля', 'Мощнейшее землетрясение с огромным уроном.', 55, 0, 30, 30, 1.1),
-        ('🔥 Огненный шар', 'Огонь', 'Запускает огненный шар, наносящий урон.', 20, 0, 10, 5, 1.15),
-        ('🛡️ Огненный щит', 'Огонь', 'Окутывает тело пламенем, повышающим атаку.', 0, 0, 15, 10, 1.0),
-        ('🔥 Пламя', 'Огонь', 'Поджигает врага, нанося урон в несколько ходов.', 28, 0, 15, 15, 1.1),
-        ('☄️ Огненный дождь', 'Огонь', 'Град огненных шаров обрушивается на врага.', 35, 0, 20, 20, 1.15),
-        ('💥 Вспышка', 'Огонь', 'Ослепительная вспышка, наносящая критический урон.', 40, 0, 25, 25, 1.1),
-        ('🌪️ Пепельный вихрь', 'Огонь', 'Огненный смерч испепеляет всё вокруг.', 60, 0, 30, 30, 1.1),
-        ('💨 Воздушный удар', 'Воздух', 'Стремительный удар воздушным потоком.', 15, 0, 8, 5, 1.15),
-        ('🍃 Ветряной щит', 'Воздух', 'Вихрь воздуха уклоняет атаки.', 0, 0, 12, 10, 1.0),
-        ('🌪️ Ураган', 'Воздух', 'Мощный ураган наносит урон.', 25, 0, 15, 15, 1.1),
-        ('🌬️ Порыв ветра', 'Воздух', 'Ветер ослабляет защиту врага.', 30, 0, 20, 20, 1.15),
-        ('⛈️ Шторм', 'Воздух', 'Грозовой шторм обрушивается на противника.', 40, 0, 25, 25, 1.1),
-        ('🌀 Ветряной смерч', 'Воздух', 'Огромный смерч сметает врага.', 55, 0, 30, 30, 1.1),
-    ]
-    for ab in abilities_data:
-        cursor.execute('''
-        INSERT INTO abilities (name, nation, description, base_damage, base_heal, energy_cost, unlock_level, upgrade_multiplier)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', ab)
+# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (ВЫПОЛНЯЕТСЯ ОДИН РАЗ) ==========
+def init_db():
+    c = conn.cursor()
+    # Таблица игроков
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS players (
+        user_id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        nation TEXT NOT NULL,
+        level INTEGER DEFAULT 1,
+        exp INTEGER DEFAULT 0,
+        hp INTEGER DEFAULT 100,
+        max_hp INTEGER DEFAULT 100,
+        attack INTEGER DEFAULT 10,
+        defense INTEGER DEFAULT 5,
+        location TEXT DEFAULT 'start',
+        energy INTEGER DEFAULT 50,
+        max_energy INTEGER DEFAULT 50,
+        skill_points INTEGER DEFAULT 0,
+        stat_points INTEGER DEFAULT 0,
+        gold INTEGER DEFAULT 0,
+        weapon_slot INTEGER DEFAULT 0,
+        armor_slot INTEGER DEFAULT 0,
+        helmet_slot INTEGER DEFAULT 0,
+        accessory_slot INTEGER DEFAULT 0,
+        last_daily_quest TIMESTAMP,
+        daily_quest TEXT,
+        daily_quest_progress INTEGER DEFAULT 0,
+        daily_quest_target TEXT,
+        daily_quest_count INTEGER DEFAULT 0,
+        daily_quest_reward_exp INTEGER DEFAULT 0,
+        daily_quest_reward_gold INTEGER DEFAULT 0,
+        last_raid TIMESTAMP,
+        pvp_wins INTEGER DEFAULT 0,
+        pvp_losses INTEGER DEFAULT 0,
+        total_kills INTEGER DEFAULT 0,
+        total_duels INTEGER DEFAULT 0,
+        total_quests INTEGER DEFAULT 0,
+        total_gold_earned INTEGER DEFAULT 0
+    )
+    ''')
+    c.execute("PRAGMA table_info(players)")
+    existing_cols = [col[1] for col in c.fetchall()]
+    for col in ['last_daily_quest', 'daily_quest', 'daily_quest_progress', 'daily_quest_target',
+                'daily_quest_count', 'daily_quest_reward_exp', 'daily_quest_reward_gold',
+                'last_raid', 'pvp_wins', 'pvp_losses', 'total_kills', 'total_duels',
+                'total_quests', 'total_gold_earned']:
+        if col not in existing_cols:
+            c.execute(f"ALTER TABLE players ADD COLUMN {col} DEFAULT NULL")
     conn.commit()
 
-# Заполнение предметов (из data.py)
-cursor.execute("SELECT COUNT(*) FROM items")
-if cursor.fetchone()[0] == 0 and items_data:
-    for item in items_data:
-        cursor.execute('''
-        INSERT INTO items (name, type, rarity, description, attack_bonus, defense_bonus, hp_bonus, energy_bonus, effect_percent, price_buy, price_sell)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', item)
+    # Таблица предметов
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        rarity TEXT NOT NULL,
+        description TEXT,
+        attack_bonus INTEGER DEFAULT 0,
+        defense_bonus INTEGER DEFAULT 0,
+        hp_bonus INTEGER DEFAULT 0,
+        energy_bonus INTEGER DEFAULT 0,
+        effect_percent INTEGER DEFAULT 0,
+        price_buy INTEGER DEFAULT 0,
+        price_sell INTEGER DEFAULT 0
+    )
+    ''')
+    c.execute("PRAGMA table_info(items)")
+    item_cols = [col[1] for col in c.fetchall()]
+    for col in ['attack_bonus', 'defense_bonus', 'hp_bonus', 'energy_bonus', 'effect_percent']:
+        if col not in item_cols:
+            c.execute(f"ALTER TABLE items ADD COLUMN {col} INTEGER DEFAULT 0")
     conn.commit()
 
-# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+    # Таблица инвентаря
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS inventory (
+        user_id INTEGER,
+        item_id INTEGER,
+        quantity INTEGER DEFAULT 1,
+        PRIMARY KEY (user_id, item_id)
+    )
+    ''')
+
+    # Таблица способностей игрока
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS player_abilities (
+        user_id INTEGER,
+        ability_id INTEGER,
+        level INTEGER DEFAULT 1,
+        PRIMARY KEY (user_id, ability_id)
+    )
+    ''')
+
+    # Таблица способностей (описания)
+    c.execute('''
+    CREATE TABLE IF NOT EXISTS abilities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        nation TEXT NOT NULL,
+        description TEXT,
+        base_damage INTEGER DEFAULT 0,
+        base_heal INTEGER DEFAULT 0,
+        energy_cost INTEGER DEFAULT 10,
+        unlock_level INTEGER DEFAULT 5,
+        upgrade_multiplier REAL DEFAULT 1.1
+    )
+    ''')
+
+    # Заполнение способностей (если пусто)
+    c.execute("SELECT COUNT(*) FROM abilities")
+    if c.fetchone()[0] == 0:
+        abilities_data = [
+            ('❄️ Ледяная стрела', 'Вода', 'Выпускает ледяной снаряд.', 15, 0, 10, 5, 1.15),
+            ('💧 Исцеление', 'Вода', 'Восстанавливает часть здоровья.', 0, 20, 15, 10, 1.2),
+            ('🛡️ Ледяной щит', 'Вода', 'Создаёт ледяную защиту.', 0, 0, 10, 15, 1.0),
+            ('🌊 Цунами', 'Вода', 'Огромная волна.', 30, 0, 20, 20, 1.1),
+            ('👻 Призыв духа', 'Вода', 'Дух воды атакует и лечит.', 10, 15, 25, 25, 1.15),
+            ('🌀 Ледяная буря', 'Вода', 'Ледяной вихрь.', 45, 0, 30, 30, 1.1),
+            ('🗿 Каменный кулак', 'Земля', 'Мощный удар.', 18, 0, 10, 5, 1.15),
+            ('🪨 Земляная броня', 'Земля', 'Увеличивает защиту.', 0, 0, 15, 10, 1.0),
+            ('🌍 Дрожь земли', 'Земля', 'Землетрясение.', 25, 0, 15, 15, 1.1),
+            ('🧱 Каменная стена', 'Земля', 'Стена, уменьшающая урон.', 0, 0, 20, 20, 1.0),
+            ('💢 Гнев земли', 'Земля', 'Разрушительная атака.', 35, 0, 20, 20, 1.15),
+            ('🌋 Землетрясение', 'Земля', 'Огромный урон.', 55, 0, 30, 30, 1.1),
+            ('🔥 Огненный шар', 'Огонь', 'Огненный снаряд.', 20, 0, 10, 5, 1.15),
+            ('🛡️ Огненный щит', 'Огонь', 'Повышает атаку.', 0, 0, 15, 10, 1.0),
+            ('🔥 Пламя', 'Огонь', 'Поджигает врага.', 28, 0, 15, 15, 1.1),
+            ('☄️ Огненный дождь', 'Огонь', 'Град огненных шаров.', 35, 0, 20, 20, 1.15),
+            ('💥 Вспышка', 'Огонь', 'Критическая атака.', 40, 0, 25, 25, 1.1),
+            ('🌪️ Пепельный вихрь', 'Огонь', 'Огненный смерч.', 60, 0, 30, 30, 1.1),
+            ('💨 Воздушный удар', 'Воздух', 'Удар воздухом.', 15, 0, 8, 5, 1.15),
+            ('🍃 Ветряной щит', 'Воздух', 'Увеличивает уклонение.', 0, 0, 12, 10, 1.0),
+            ('🌪️ Ураган', 'Воздух', 'Мощный ураган.', 25, 0, 15, 15, 1.1),
+            ('🌬️ Порыв ветра', 'Воздух', 'Ослабляет защиту врага.', 30, 0, 20, 20, 1.15),
+            ('⛈️ Шторм', 'Воздух', 'Грозовой шторм.', 40, 0, 25, 25, 1.1),
+            ('🌀 Ветряной смерч', 'Воздух', 'Огромный смерч.', 55, 0, 30, 30, 1.1),
+        ]
+        for ab in abilities_data:
+            c.execute('''
+            INSERT INTO abilities (name, nation, description, base_damage, base_heal, energy_cost, unlock_level, upgrade_multiplier)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', ab)
+        conn.commit()
+
+    # Заполнение предметов (из data.py)
+    c.execute("SELECT COUNT(*) FROM items")
+    if c.fetchone()[0] == 0 and items_data:
+        for item in items_data:
+            c.execute('''
+            INSERT INTO items (name, type, rarity, description, attack_bonus, defense_bonus, hp_bonus, energy_bonus, effect_percent, price_buy, price_sell)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', item)
+        conn.commit()
+    c.close()
+
+# Выполняем инициализацию БД
+init_db()
+
+# ========== СОСТОЯНИЯ ==========
 registration_states = {}
 battle_states = {}
 pvp_duels = {}
 restore_cooldowns = {}
 pending_monsters = {}
 
+# ========== ФУНКЦИИ РАБОТЫ С БД (С ЛОКАЛЬНЫМИ КУРСОРАМИ) ==========
 def get_player(user_id):
-    cursor.execute("SELECT * FROM players WHERE user_id = ?", (user_id,))
-    row = cursor.fetchone()
+    c = conn.cursor()
+    c.execute("SELECT * FROM players WHERE user_id = ?", (user_id,))
+    row = c.fetchone()
+    c.close()
     if row:
         columns = ['user_id','name','nation','level','exp','hp','max_hp','attack','defense','location','energy','max_energy',
                    'skill_points','stat_points','gold','weapon_slot','armor_slot','helmet_slot','accessory_slot',
@@ -214,17 +215,119 @@ def create_player(user_id, name, nation):
         atk, df = 10, 8
     else:
         atk, df = 10, 5
-    cursor.execute('''
+    c = conn.cursor()
+    c.execute('''
     INSERT INTO players (user_id, name, nation, attack, defense, skill_points, stat_points, gold,
                          total_kills, total_duels, total_quests, total_gold_earned)
     VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0)
     ''', (user_id, name, nation, atk, df))
     conn.commit()
+    c.close()
 
 def save_player(user_id, **kwargs):
+    if not kwargs:
+        return
+    c = conn.cursor()
     for key, value in kwargs.items():
-        cursor.execute(f"UPDATE players SET {key} = ? WHERE user_id = ?", (value, user_id))
+        c.execute(f"UPDATE players SET {key} = ? WHERE user_id = ?", (value, user_id))
     conn.commit()
+    c.close()
+
+def add_item_to_inventory(user_id, item_name, quantity=1):
+    c = conn.cursor()
+    c.execute("SELECT id FROM items WHERE name = ?", (item_name,))
+    row = c.fetchone()
+    if not row:
+        c.close()
+        return False
+    item_id = row[0]
+    c.execute("INSERT INTO inventory (user_id, item_id, quantity) VALUES (?, ?, ?) "
+              "ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?",
+              (user_id, item_id, quantity, quantity))
+    conn.commit()
+    c.close()
+    return True
+
+def get_inventory(user_id):
+    c = conn.cursor()
+    c.execute('''
+    SELECT items.id, items.name, items.type, items.rarity, items.description,
+           items.attack_bonus, items.defense_bonus, items.hp_bonus, items.energy_bonus,
+           items.effect_percent, inventory.quantity
+    FROM inventory
+    JOIN items ON inventory.item_id = items.id
+    WHERE inventory.user_id = ?
+    ''', (user_id,))
+    result = c.fetchall()
+    c.close()
+    return result
+
+def get_item_info(item_id):
+    c = conn.cursor()
+    c.execute('''
+    SELECT id, name, type, rarity, description, attack_bonus, defense_bonus, hp_bonus, energy_bonus, effect_percent, price_buy, price_sell
+    FROM items WHERE id = ?
+    ''', (item_id,))
+    row = c.fetchone()
+    c.close()
+    return row
+
+def get_player_abilities(user_id):
+    c = conn.cursor()
+    c.execute('''
+    SELECT a.id, a.name, a.nation, a.description, a.base_damage, a.base_heal, a.energy_cost, a.unlock_level, a.upgrade_multiplier, p.level
+    FROM abilities a
+    LEFT JOIN player_abilities p ON a.id = p.ability_id AND p.user_id = ?
+    WHERE a.nation = (SELECT nation FROM players WHERE user_id = ?)
+    AND a.unlock_level <= (SELECT level FROM players WHERE user_id = ?)
+    ''', (user_id, user_id, user_id))
+    result = c.fetchall()
+    c.close()
+    return result
+
+def upgrade_ability(user_id, ability_id):
+    c = conn.cursor()
+    c.execute("SELECT level FROM player_abilities WHERE user_id = ? AND ability_id = ?", (user_id, ability_id))
+    row = c.fetchone()
+    if row:
+        new_level = row[0] + 1
+        c.execute("UPDATE player_abilities SET level = ? WHERE user_id = ? AND ability_id = ?", (new_level, user_id, ability_id))
+    else:
+        new_level = 2
+        c.execute("INSERT INTO player_abilities (user_id, ability_id, level) VALUES (?, ?, ?)", (user_id, ability_id, 2))
+    conn.commit()
+    c.close()
+    return new_level
+
+def get_monster_for_location(location_id):
+    possible = [m for m in monster_templates.values() if location_id in m.get('locations', [])]
+    if not possible:
+        return {
+            'name': '👾 Дикое создание',
+            'desc': 'Неизвестное существо.',
+            'hp': 30, 'attack': 10, 'defense': 3, 'exp': 15,
+            'ability': '💢 Дикий рывок',
+            'ability_damage': 15,
+            'rank': 'Обычный',
+            'loot': [{'item_name': '🧪 Малое зелье лечения', 'chance': 0.1}],
+            'gold_min': 2, 'gold_max': 8
+        }
+    monster = random.choice(possible).copy()
+    roll = random.random()
+    if roll < 0.6:
+        rank, mult = 'Обычный', 1.0
+    elif roll < 0.9:
+        rank, mult = 'Элитный', 1.8
+    else:
+        rank, mult = 'Босс', 3.0
+    monster['hp'] = int(monster['hp'] * mult)
+    monster['attack'] = int(monster['attack'] * mult)
+    monster['defense'] = int(monster['defense'] * mult)
+    monster['exp'] = int(monster['exp'] * mult)
+    monster['gold_min'] = int(monster['gold_min'] * mult)
+    monster['gold_max'] = int(monster['gold_max'] * mult)
+    monster['rank'] = rank
+    return monster
 
 def gain_exp(user_id, amount):
     player = get_player(user_id)
@@ -257,13 +360,6 @@ def heal_player(player, percent_hp=0.2, percent_energy=0.3):
     new_energy = min(player['energy'] + energy_heal, player['max_energy'])
     save_player(player['user_id'], hp=new_hp, energy=new_energy)
     return new_hp - player['hp'], new_energy - player['energy'], new_hp, new_energy
-
-def get_item_info(item_id):
-    cursor.execute('''
-    SELECT id, name, type, rarity, description, attack_bonus, defense_bonus, hp_bonus, energy_bonus, effect_percent, price_buy, price_sell
-    FROM items WHERE id = ?
-    ''', (item_id,))
-    return cursor.fetchone()
 
 def get_total_stats(player):
     base_atk = player['attack']
@@ -302,11 +398,13 @@ def equip_item(user_id, item_id):
     slot = slot_map[typ]
     player = get_player(user_id)
     old = player[slot]
+    c = conn.cursor()
     if old > 0:
-        cursor.execute("UPDATE inventory SET quantity = quantity + 1 WHERE user_id = ? AND item_id = ?", (user_id, old))
-    cursor.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
-    cursor.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0", (user_id, item_id))
+        c.execute("UPDATE inventory SET quantity = quantity + 1 WHERE user_id = ? AND item_id = ?", (user_id, old))
+    c.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
+    c.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0", (user_id, item_id))
     conn.commit()
+    c.close()
     save_player(user_id, **{slot: item_id})
     return True, f"✅ Экипировано {item[1]}"
 
@@ -319,98 +417,13 @@ def unequip_item(user_id, slot):
     item_id = player[db_slot]
     if item_id == 0:
         return False, "Слот пуст."
-    cursor.execute("UPDATE inventory SET quantity = quantity + 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
+    c = conn.cursor()
+    c.execute("UPDATE inventory SET quantity = quantity + 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
     conn.commit()
+    c.close()
     save_player(user_id, **{db_slot: 0})
     item = get_item_info(item_id)
     return True, f"✅ Снято {item[1]}"
-
-def add_item_to_inventory(user_id, item_name, quantity=1):
-    cursor.execute("SELECT id FROM items WHERE name = ?", (item_name,))
-    row = cursor.fetchone()
-    if not row:
-        return False
-    item_id = row[0]
-    cursor.execute("INSERT INTO inventory (user_id, item_id, quantity) VALUES (?, ?, ?) "
-                   "ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?",
-                   (user_id, item_id, quantity, quantity))
-    conn.commit()
-    return True
-
-def get_inventory(user_id):
-    cursor.execute('''
-    SELECT items.id, items.name, items.type, items.rarity, items.description,
-           items.attack_bonus, items.defense_bonus, items.hp_bonus, items.energy_bonus,
-           items.effect_percent, inventory.quantity
-    FROM inventory
-    JOIN items ON inventory.item_id = items.id
-    WHERE inventory.user_id = ?
-    ''', (user_id,))
-    return cursor.fetchall()
-
-def get_player_abilities(user_id):
-    cursor.execute('''
-    SELECT a.id, a.name, a.nation, a.description, a.base_damage, a.base_heal, a.energy_cost, a.unlock_level, a.upgrade_multiplier, p.level
-    FROM abilities a
-    LEFT JOIN player_abilities p ON a.id = p.ability_id AND p.user_id = ?
-    WHERE a.nation = (SELECT nation FROM players WHERE user_id = ?)
-    AND a.unlock_level <= (SELECT level FROM players WHERE user_id = ?)
-    ''', (user_id, user_id, user_id))
-    return cursor.fetchall()
-
-def get_ability_damage(ability, player_level):
-    base = ability[4]
-    upgrade_level = ability[9] if ability[9] else 1
-    multiplier = ability[8] ** (upgrade_level - 1)
-    return int(base * multiplier)
-
-def get_ability_heal(ability, player_level):
-    base = ability[5]
-    upgrade_level = ability[9] if ability[9] else 1
-    multiplier = ability[8] ** (upgrade_level - 1)
-    return int(base * multiplier)
-
-def upgrade_ability(user_id, ability_id):
-    cursor.execute("SELECT level FROM player_abilities WHERE user_id = ? AND ability_id = ?", (user_id, ability_id))
-    row = cursor.fetchone()
-    if row:
-        new_level = row[0] + 1
-        cursor.execute("UPDATE player_abilities SET level = ? WHERE user_id = ? AND ability_id = ?", (new_level, user_id, ability_id))
-    else:
-        new_level = 2
-        cursor.execute("INSERT INTO player_abilities (user_id, ability_id, level) VALUES (?, ?, ?)", (user_id, ability_id, 2))
-    conn.commit()
-    return new_level
-
-def get_monster_for_location(location_id):
-    possible = [m for m in monster_templates.values() if location_id in m.get('locations', [])]
-    if not possible:
-        return {
-            'name': '👾 Дикое создание',
-            'desc': 'Неизвестное существо, появившееся из ниоткуда.',
-            'hp': 30, 'attack': 10, 'defense': 3, 'exp': 15,
-            'ability': '💢 Дикий рывок',
-            'ability_damage': 15,
-            'rank': 'Обычный',
-            'loot': [{'item_name': '🧪 Малое зелье лечения', 'chance': 0.1}],
-            'gold_min': 2, 'gold_max': 8
-        }
-    monster = random.choice(possible).copy()
-    roll = random.random()
-    if roll < 0.6:
-        rank, mult = 'Обычный', 1.0
-    elif roll < 0.9:
-        rank, mult = 'Элитный', 1.8
-    else:
-        rank, mult = 'Босс', 3.0
-    monster['hp'] = int(monster['hp'] * mult)
-    monster['attack'] = int(monster['attack'] * mult)
-    monster['defense'] = int(monster['defense'] * mult)
-    monster['exp'] = int(monster['exp'] * mult)
-    monster['gold_min'] = int(monster['gold_min'] * mult)
-    monster['gold_max'] = int(monster['gold_max'] * mult)
-    monster['rank'] = rank
-    return monster
 
 def generate_daily_quest():
     quest = random.choice(daily_quests_pool)
@@ -572,11 +585,13 @@ def shop_menu(user_id, category=None):
         keyboard.add(telebot.types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu"))
         return text, keyboard
     else:
-        cursor.execute('''
+        c = conn.cursor()
+        c.execute('''
         SELECT id, name, type, rarity, description, attack_bonus, defense_bonus, hp_bonus, energy_bonus, price_buy
         FROM items WHERE type = ? AND price_buy > 0
         ''', (category,))
-        items = cursor.fetchall()
+        items = c.fetchall()
+        c.close()
         if not items:
             return "📭 В этой категории нет товаров.", None
         text = f"🛒 **Категория:** {categories.get(category, category)}\n💰 **Ваше золото:** {player['gold']}\n\n"
@@ -669,6 +684,19 @@ def equipment_menu(user_id):
     text += f"⚡ Макс. энергия: {total['max_energy']} (база {player['max_energy']} + {total['bonus_energy']})"
     keyboard.add(telebot.types.InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu"))
     return text, keyboard
+
+# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ СПОСОБНОСТЕЙ ==========
+def get_ability_damage(ability, player_level):
+    base = ability[4]
+    upgrade_level = ability[9] if ability[9] else 1
+    multiplier = ability[8] ** (upgrade_level - 1)
+    return int(base * multiplier)
+
+def get_ability_heal(ability, player_level):
+    base = ability[5]
+    upgrade_level = ability[9] if ability[9] else 1
+    multiplier = ability[8] ** (upgrade_level - 1)
+    return int(base * multiplier)
 
 # ========== ОБРАБОТЧИКИ КОМАНД ==========
 @bot.message_handler(commands=['start'])
@@ -808,8 +836,10 @@ def duel_cmd(message):
         bot.reply_to(message, "Использование: /duel @username")
         return
     target_name = args[1].lstrip('@')
-    cursor.execute("SELECT user_id, name FROM players WHERE name LIKE ?", (target_name,))
-    row = cursor.fetchone()
+    c = conn.cursor()
+    c.execute("SELECT user_id, name FROM players WHERE name LIKE ?", (target_name,))
+    row = c.fetchone()
+    c.close()
     if not row:
         bot.reply_to(message, "Игрок не найден.")
         return
@@ -1097,18 +1127,22 @@ def use_item_callback(call):
         hp_heal = int(player['max_hp'] * heal_percent)
         new_hp = min(player['hp'] + hp_heal, player['max_hp'])
         save_player(user_id, hp=new_hp)
-        cursor.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
-        cursor.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0", (user_id, item_id))
+        c = conn.cursor()
+        c.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
+        c.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0", (user_id, item_id))
         conn.commit()
+        c.close()
         bot.answer_callback_query(call.id, f"🧪 Вы восстановили {new_hp - player['hp']} HP.")
     elif typ == 'potion_energy':
         heal_percent = item[9] / 100.0
         energy_heal = int(player['max_energy'] * heal_percent)
         new_energy = min(player['energy'] + energy_heal, player['max_energy'])
         save_player(user_id, energy=new_energy)
-        cursor.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
-        cursor.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0", (user_id, item_id))
+        c = conn.cursor()
+        c.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?", (user_id, item_id))
+        c.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0", (user_id, item_id))
         conn.commit()
+        c.close()
         bot.answer_callback_query(call.id, f"🧪 Вы восстановили {new_energy - player['energy']} энергии.")
     else:
         bot.answer_callback_query(call.id, "Этот предмет нельзя использовать.")
@@ -1170,8 +1204,10 @@ def sell_menu_callback(call):
     keyboard = telebot.types.InlineKeyboardMarkup(row_width=1)
     for item in items:
         item_id, name, typ, rarity, desc, atk, df, hp, en, effect, qty = item
-        cursor.execute("SELECT price_sell FROM items WHERE id = ?", (item_id,))
-        price = cursor.fetchone()[0]
+        c = conn.cursor()
+        c.execute("SELECT price_sell FROM items WHERE id = ?", (item_id,))
+        price = c.fetchone()[0]
+        c.close()
         text += f"**{name}** x{qty} — {price} золота за шт.\n"
         keyboard.add(telebot.types.InlineKeyboardButton(f"💰 Продать {name} (x{qty})", callback_data=f"sell_{item_id}"))
     keyboard.add(telebot.types.InlineKeyboardButton("🔙 Назад", callback_data="shop_back"))
@@ -1185,18 +1221,23 @@ def sell_callback(call):
     player = get_player(user_id)
     if not player:
         return
-    cursor.execute("SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?", (user_id, item_id))
-    qty_row = cursor.fetchone()
+    c = conn.cursor()
+    c.execute("SELECT quantity FROM inventory WHERE user_id = ? AND item_id = ?", (user_id, item_id))
+    qty_row = c.fetchone()
     if not qty_row or qty_row[0] <= 0:
+        c.close()
         bot.answer_callback_query(call.id, "Нет предмета.")
         return
     qty = qty_row[0]
-    cursor.execute("SELECT price_sell FROM items WHERE id = ?", (item_id,))
-    price = cursor.fetchone()[0]
+    c.execute("SELECT price_sell FROM items WHERE id = ?", (item_id,))
+    price = c.fetchone()[0]
     total_gold = price * qty
+    c.close()
     save_player(user_id, gold=player['gold'] + total_gold)
-    cursor.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ?", (user_id, item_id))
+    c = conn.cursor()
+    c.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ?", (user_id, item_id))
     conn.commit()
+    c.close()
     bot.answer_callback_query(call.id, f"💰 Продано {qty} шт. за {total_gold} золота.")
     sell_menu_callback(call)
 
@@ -1320,8 +1361,10 @@ def decline_duel_callback(call):
 def reset_callback(call):
     user_id = call.message.chat.id
     if call.data == 'confirm_reset':
-        cursor.execute("DELETE FROM players WHERE user_id = ?", (user_id,))
+        c = conn.cursor()
+        c.execute("DELETE FROM players WHERE user_id = ?", (user_id,))
         conn.commit()
+        c.close()
         if user_id in battle_states:
             del battle_states[user_id]
         if user_id in restore_cooldowns:
