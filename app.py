@@ -10,7 +10,7 @@ import math
 from datetime import datetime, timedelta
 
 # ========== ИМПОРТ ДАННЫХ ==========
-from data import locations, monster_templates, items_data, raid_boss, daily_quests_pool
+from data import locations, monster_templates, items_data, raid_boss, daily_quests_pool, nation_info
 
 # ========== ТОКЕН ==========
 TOKEN = os.environ.get('TELEGRAM_TOKEN')
@@ -22,10 +22,9 @@ bot = telebot.TeleBot(TOKEN)
 # ========== ПОДКЛЮЧЕНИЕ К БАЗЕ ДАННЫХ ==========
 conn = sqlite3.connect('game.db', check_same_thread=False)
 
-# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ (ВЫПОЛНЯЕТСЯ ОДИН РАЗ) ==========
+# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
 def init_db():
     c = conn.cursor()
-    # Таблица игроков
     c.execute('''
     CREATE TABLE IF NOT EXISTS players (
         user_id INTEGER PRIMARY KEY,
@@ -73,7 +72,6 @@ def init_db():
             c.execute(f"ALTER TABLE players ADD COLUMN {col} DEFAULT NULL")
     conn.commit()
 
-    # Таблица предметов
     c.execute('''
     CREATE TABLE IF NOT EXISTS items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,7 +95,6 @@ def init_db():
             c.execute(f"ALTER TABLE items ADD COLUMN {col} INTEGER DEFAULT 0")
     conn.commit()
 
-    # Таблица инвентаря
     c.execute('''
     CREATE TABLE IF NOT EXISTS inventory (
         user_id INTEGER,
@@ -106,8 +103,6 @@ def init_db():
         PRIMARY KEY (user_id, item_id)
     )
     ''')
-
-    # Таблица способностей игрока
     c.execute('''
     CREATE TABLE IF NOT EXISTS player_abilities (
         user_id INTEGER,
@@ -116,8 +111,6 @@ def init_db():
         PRIMARY KEY (user_id, ability_id)
     )
     ''')
-
-    # Таблица способностей (описания)
     c.execute('''
     CREATE TABLE IF NOT EXISTS abilities (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,8 +124,6 @@ def init_db():
         upgrade_multiplier REAL DEFAULT 1.1
     )
     ''')
-
-    # Заполнение способностей (если пусто)
     c.execute("SELECT COUNT(*) FROM abilities")
     if c.fetchone()[0] == 0:
         abilities_data = [
@@ -167,8 +158,6 @@ def init_db():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ''', ab)
         conn.commit()
-
-    # Заполнение предметов (из data.py)
     c.execute("SELECT COUNT(*) FROM items")
     if c.fetchone()[0] == 0 and items_data:
         for item in items_data:
@@ -179,7 +168,6 @@ def init_db():
         conn.commit()
     c.close()
 
-# Выполняем инициализацию БД
 init_db()
 
 # ========== СОСТОЯНИЯ ==========
@@ -189,7 +177,18 @@ pvp_duels = {}
 restore_cooldowns = {}
 pending_monsters = {}
 
-# ========== ФУНКЦИИ РАБОТЫ С БД (С ЛОКАЛЬНЫМИ КУРСОРАМИ) ==========
+# ========== СПИСОК РАЗРАБОТЧИКОВ (по username) ==========
+DEVELOPER_USERNAMES = ['diasper']
+
+def is_developer(user_id):
+    """Проверяет, является ли пользователь разработчиком (по username)."""
+    try:
+        user = bot.get_chat(user_id)
+        return user.username in DEVELOPER_USERNAMES
+    except:
+        return False
+
+# ========== ФУНКЦИИ РАБОТЫ С БД (локальные курсоры) ==========
 def get_player(user_id):
     c = conn.cursor()
     c.execute("SELECT * FROM players WHERE user_id = ?", (user_id,))
@@ -205,16 +204,9 @@ def get_player(user_id):
     return None
 
 def create_player(user_id, name, nation):
-    if nation == 'Вода':
-        atk, df = 8, 7
-    elif nation == 'Земля':
-        atk, df = 12, 10
-    elif nation == 'Огонь':
-        atk, df = 15, 5
-    elif nation == 'Воздух':
-        atk, df = 10, 8
-    else:
-        atk, df = 10, 5
+    stats = nation_info.get(nation, {'attack': 10, 'defense': 5})
+    atk = stats['attack']
+    df = stats['defense']
     c = conn.cursor()
     c.execute('''
     INSERT INTO players (user_id, name, nation, attack, defense, skill_points, stat_points, gold,
@@ -698,7 +690,202 @@ def get_ability_heal(ability, player_level):
     multiplier = ability[8] ** (upgrade_level - 1)
     return int(base * multiplier)
 
-# ========== ОБРАБОТЧИКИ КОМАНД ==========
+# ========== СКРЫТЫЕ КОМАНДЫ ДЛЯ РАЗРАБОТЧИКА ==========
+@bot.message_handler(commands=['dev_help'])
+def dev_help(message):
+    if not is_developer(message.from_user.id):
+        return
+    help_text = "🔧 **Команды разработчика:**\n\n"
+    help_text += "/dev_add_exp <количество> - добавить опыт\n"
+    help_text += "/dev_set_level <уровень> - установить уровень\n"
+    help_text += "/dev_add_gold <количество> - добавить золото\n"
+    help_text += "/dev_add_item <название> [количество] - добавить предмет\n"
+    help_text += "/dev_teleport <id_локации> - телепорт\n"
+    help_text += "/dev_reset_quest - сбросить квест\n"
+    help_text += "/dev_heal - полное восстановление\n"
+    help_text += "/dev_give_all_items - выдать все предметы\n"
+    help_text += "/dev_spawn <имя_монстра> - спавн монстра для боя\n"
+    help_text += "/dev_kill - убить текущего монстра\n"
+    bot.reply_to(message, help_text, parse_mode='Markdown')
+
+@bot.message_handler(commands=['dev_add_exp'])
+def dev_add_exp(message):
+    if not is_developer(message.from_user.id):
+        return
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /dev_add_exp <количество>")
+        return
+    try:
+        amount = int(args[1])
+        gain_exp(message.from_user.id, amount)
+        bot.reply_to(message, f"✅ Добавлено {amount} опыта.")
+    except ValueError:
+        bot.reply_to(message, "❌ Введите число.")
+
+@bot.message_handler(commands=['dev_set_level'])
+def dev_set_level(message):
+    if not is_developer(message.from_user.id):
+        return
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /dev_set_level <уровень>")
+        return
+    try:
+        new_level = int(args[1])
+        player = get_player(message.from_user.id)
+        if not player:
+            bot.reply_to(message, "❌ Персонаж не найден.")
+            return
+        # Упрощённый пересчёт (уровень меняется, статы не пересчитываются, но для тестов сойдёт)
+        save_player(message.from_user.id, level=new_level)
+        bot.reply_to(message, f"✅ Уровень установлен на {new_level}.")
+    except ValueError:
+        bot.reply_to(message, "❌ Введите число.")
+
+@bot.message_handler(commands=['dev_add_gold'])
+def dev_add_gold(message):
+    if not is_developer(message.from_user.id):
+        return
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /dev_add_gold <количество>")
+        return
+    try:
+        amount = int(args[1])
+        player = get_player(message.from_user.id)
+        if not player:
+            bot.reply_to(message, "❌ Персонаж не найден.")
+            return
+        save_player(message.from_user.id, gold=player['gold'] + amount)
+        bot.reply_to(message, f"✅ Добавлено {amount} золота.")
+    except ValueError:
+        bot.reply_to(message, "❌ Введите число.")
+
+@bot.message_handler(commands=['dev_add_item'])
+def dev_add_item(message):
+    if not is_developer(message.from_user.id):
+        return
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /dev_add_item <название> [количество]")
+        return
+    item_name = ' '.join(args[1:])
+    quantity = 1
+    if args[-1].isdigit():
+        quantity = int(args[-1])
+        item_name = ' '.join(args[1:-1])
+    c = conn.cursor()
+    c.execute("SELECT id FROM items WHERE name = ?", (item_name,))
+    if not c.fetchone():
+        bot.reply_to(message, f"❌ Предмет '{item_name}' не найден.")
+        c.close()
+        return
+    c.close()
+    add_item_to_inventory(message.from_user.id, item_name, quantity)
+    bot.reply_to(message, f"✅ Добавлено {quantity} шт. {item_name}.")
+
+@bot.message_handler(commands=['dev_teleport'])
+def dev_teleport(message):
+    if not is_developer(message.from_user.id):
+        return
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /dev_teleport <id_локации>")
+        return
+    loc_id = args[1]
+    if loc_id not in locations:
+        bot.reply_to(message, f"❌ Локация '{loc_id}' не найдена.")
+        return
+    save_player(message.from_user.id, location=loc_id)
+    loc = locations[loc_id]
+    bot.reply_to(message, f"🚀 Телепорт в {loc['name']}.")
+
+@bot.message_handler(commands=['dev_reset_quest'])
+def dev_reset_quest(message):
+    if not is_developer(message.from_user.id):
+        return
+    save_player(message.from_user.id,
+                daily_quest=None,
+                daily_quest_progress=0,
+                daily_quest_target=None,
+                daily_quest_count=0,
+                daily_quest_reward_exp=0,
+                daily_quest_reward_gold=0)
+    bot.reply_to(message, "✅ Квест сброшен.")
+
+@bot.message_handler(commands=['dev_heal'])
+def dev_heal(message):
+    if not is_developer(message.from_user.id):
+        return
+    player = get_player(message.from_user.id)
+    if not player:
+        bot.reply_to(message, "❌ Персонаж не найден.")
+        return
+    save_player(message.from_user.id, hp=player['max_hp'], energy=player['max_energy'])
+    bot.reply_to(message, "❤️ Здоровье и энергия полностью восстановлены.")
+
+@bot.message_handler(commands=['dev_give_all_items'])
+def dev_give_all_items(message):
+    if not is_developer(message.from_user.id):
+        return
+    c = conn.cursor()
+    c.execute("SELECT name FROM items")
+    all_items = c.fetchall()
+    c.close()
+    for item in all_items:
+        add_item_to_inventory(message.from_user.id, item[0], 1)
+    bot.reply_to(message, "✅ Выданы все предметы (по 1 шт).")
+
+@bot.message_handler(commands=['dev_spawn'])
+def dev_spawn(message):
+    if not is_developer(message.from_user.id):
+        return
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Использование: /dev_spawn <имя_монстра>")
+        return
+    monster_name = ' '.join(args[1:])
+    found = None
+    for m in monster_templates.values():
+        if m['name'] == monster_name:
+            found = m.copy()
+            break
+    if not found:
+        bot.reply_to(message, f"❌ Монстр '{monster_name}' не найден.")
+        return
+    battle_states[message.from_user.id] = {
+        'monster': found,
+        'defending': False,
+        'restore_used': False,
+        'turn': 'player'
+    }
+    player = get_player(message.from_user.id)
+    total = get_total_stats(player)
+    bot.send_message(message.chat.id,
+                     f"⚔️ **Спавн монстра {found['name']}**\n\n"
+                     f"_{found['desc']}_\n\n"
+                     f"❤️ HP: {found['hp']}\n⚔️ Атака: {found['attack']}\n🛡️ Защита: {found['defense']}\n"
+                     f"💥 Способность: {found['ability']} (урон {found['ability_damage']})\n\n"
+                     f"{battle_status_text(player, found, total)}\n\n"
+                     "⚔️ Ваш ход!",
+                     reply_markup=battle_keyboard(), parse_mode='Markdown')
+    bot.reply_to(message, "✅ Монстр создан.")
+
+@bot.message_handler(commands=['dev_kill'])
+def dev_kill(message):
+    if not is_developer(message.from_user.id):
+        return
+    if message.from_user.id not in battle_states:
+        bot.reply_to(message, "❌ Вы не в бою.")
+        return
+    battle_states[message.from_user.id]['monster']['hp'] = 0
+    bot.reply_to(message, "💀 Монстр убит (dev-команда). Бой завершён.")
+    if message.from_user.id in battle_states:
+        del battle_states[message.from_user.id]
+    bot.reply_to(message, "Бой завершён.", reply_markup=main_menu_keyboard())
+
+# ========== ОБРАБОТЧИКИ КОМАНД (основные) ==========
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
     user_id = message.chat.id
@@ -1511,7 +1698,6 @@ def battle_action(message):
         if state.get('is_raid', False):
             save_player(user_id, last_raid=datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
             bot.send_message(user_id, "🐉 Рейдовый босс повержен! Возвращайтесь завтра.")
-        # Обновляем квест
         player_loc = player['location']
         quest_complete, quest_msg = update_daily_quest(user_id, player_loc)
         if quest_complete and quest_msg:
@@ -1673,7 +1859,7 @@ def back_to_battle_callback(call):
                           reply_markup=battle_keyboard(), parse_mode='Markdown')
     bot.answer_callback_query(call.id)
 
-# ========== РЕГИСТРАЦИЯ ==========
+# ========== РЕГИСТРАЦИЯ (обновлённая, с описанием наций) ==========
 @bot.message_handler(func=lambda msg: msg.chat.id in registration_states)
 def registration_handler(message):
     user_id = message.chat.id
@@ -1685,10 +1871,14 @@ def registration_handler(message):
             return
         state['name'] = name
         state['step'] = 1
+        text = f"⭐ Отлично, {name}! Теперь выберите вашу нацию:\n\n"
+        for n, info in nation_info.items():
+            text += f"**{n}** — {info['description']}\n"
+            text += f"  ⚔️ Атака: {info['attack']}, 🛡️ Защита: {info['defense']}\n\n"
         keyboard = telebot.types.InlineKeyboardMarkup(row_width=2)
-        for nation in ['💧 Вода', '🌍 Земля', '🔥 Огонь', '🌪️ Воздух']:
+        for nation in nation_info.keys():
             keyboard.add(telebot.types.InlineKeyboardButton(nation, callback_data=f"nation_{nation}"))
-        bot.reply_to(message, f"⭐ Отлично, {name}! Теперь выберите вашу нацию:", reply_markup=keyboard)
+        bot.reply_to(message, text, reply_markup=keyboard, parse_mode='Markdown')
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('nation_'))
 def nation_callback(call):
@@ -1697,8 +1887,11 @@ def nation_callback(call):
         bot.answer_callback_query(call.id, "Ошибка.")
         return
     state = registration_states[user_id]
+    if state['step'] != 1:
+        bot.answer_callback_query(call.id, "Уже выбрано.")
+        return
     full = call.data.split('_', 1)[1]
-    nation = full.split(' ', 1)[1] if ' ' in full else full
+    nation = full
     name = state['name']
     create_player(user_id, name, nation)
     del registration_states[user_id]
